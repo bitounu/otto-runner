@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 
 
 #include <GLES2/gl2.h>
@@ -249,7 +250,7 @@ void PS_destruct(PS* ps)
 void PS_render(PS* ps)
 {
     int i;
-    assert(ps);
+    //assert(ps);
     vgSeti(VG_BLEND_MODE, VG_BLEND_SRC_OVER);
 
     for(i=0;i<ps->m_numPaths;i++)
@@ -268,7 +269,7 @@ void PS_render(PS* ps)
 
         vgDrawPath(ps->m_paths[i].m_path, ps->m_paths[i].m_paintMode);
     }
-    assert(vgGetError() == VG_NO_ERROR);
+    //assert(vgGetError() == VG_NO_ERROR);
 }
 
 PS* tiger = NULL;
@@ -285,14 +286,14 @@ void render(int w, int h)
         vgClear(0, 0, w, h);
 
         vgLoadIdentity();
-        vgTranslate(256, 256);
+        vgTranslate(w*0.5f, h*0.5f);
         vgRotate(rotateN);
-        vgTranslate(-256, -256);
+        vgTranslate(-w*0.5f, -h*0.5f);
         vgScale(scale, scale);
         vgTranslate(-tigerMinX, -tigerMinY + 0.5f * (h / scale - (tigerMaxY - tigerMinY)));
 
         PS_render(tiger);
-        assert(vgGetError() == VG_NO_ERROR);
+        //assert(vgGetError() == VG_NO_ERROR);
 
 }
 
@@ -315,18 +316,29 @@ int redraw()
     // start with a clear screen
     glClear( GL_COLOR_BUFFER_BIT );
 
-    render(512,512);
+    render(canvas.screen_width,canvas.screen_height);
     stak_canvas_swap(&canvas);
     stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 16 / 8);
     //usleep(25 * 1000);
     return 0;
 }
 
+uint64_t get_time() {
+    struct timespec timer;
+    clock_gettime(CLOCK_MONOTONIC, &timer);
+    return (uint64_t) (timer.tv_sec) * 1000000L + timer.tv_nsec / 1000L;
+}
 int main(int argc, char **argv)
 {
     setlogmask(LOG_UPTO(LOG_DEBUG));
     openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
     syslog(LOG_DEBUG, "Starting fb output");
+    uint64_t last_time, current_time;
+    current_time = get_time();
+    last_time = current_time;
+    int frames_this_second = 0;
+    int frames_per_second = 0;
+
 
     // setup sigterm handler
     struct sigaction action;
@@ -343,12 +355,24 @@ int main(int argc, char **argv)
     stak_seps114a_init(&lcd_device);
     stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
 
+    printf("Created canvas of size: %ix%i\n", canvas.screen_width, canvas.screen_height);
+
     init( );
 
     while (!terminate)
     {
+        frames_this_second++;
+        current_time = get_time();
+        if(current_time > last_time + 1000000) {
+            frames_per_second = frames_this_second;
+            frames_this_second = 0;
+            last_time = current_time;
+            printf("FPS: %i\n", frames_per_second);
+        }
+
         redraw();
         stak_seps114a_update(&lcd_device);
+
     }
     deinit();
     shutdown();

@@ -4,6 +4,8 @@
 #include <EGL/eglext.h>
 #include <syslog.h>
 #include <assert.h>
+
+static VC_RECT_T screen_rect;
 int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
 //#define RENDER_WINDOW_ONSCREEN
     bcm_host_init();
@@ -21,7 +23,7 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     canvas->display = vc_dispmanx_display_open( 0 );
 #endif
 
-    canvas->scaled_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, 96, 96, &canvas->scaled_ptr);
+    canvas->scaled_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, canvas_w, canvas_h, &canvas->scaled_ptr);
     if (!canvas->scaled_resource)
     {
         syslog(LOG_ERR, "Unable to create LCD output buffer");
@@ -31,22 +33,24 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     canvas->update = vc_dispmanx_update_start( 0 );
 
     graphics_get_display_size(canvas->display , &canvas->screen_width, &canvas->screen_height);
+    canvas->screen_width = 512;
+    canvas->screen_height = 512;
 
-    vc_dispmanx_rect_set( &canvas->opengl_rect, 0, 0, canvas->screen_width, canvas->screen_height );
-    vc_dispmanx_rect_set( &canvas->scaled_rect, 0, 0, canvas->screen_width << 16, canvas->screen_height << 16 );
-    vc_dispmanx_rect_set( &canvas->fb_rect, 0, 0, canvas_w, canvas_h );
+    vc_dispmanx_rect_set( &screen_rect, 0, 0, 512, 512 );
+    vc_dispmanx_rect_set( &canvas->opengl_rect, 0, 0, 512 << 16, 512 << 16 );
+    vc_dispmanx_rect_set( &canvas->scaled_rect, 0, 0, canvas_w, canvas_h );
 
     VC_DISPMANX_ALPHA_T alpha = { DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0 };
 
-    canvas->opengl_element = vc_dispmanx_element_add(canvas->update, canvas->display, 1 , &canvas->opengl_rect,
-                             canvas->opengl_resource, &canvas->scaled_rect,
+    canvas->opengl_element = vc_dispmanx_element_add(canvas->update, canvas->display, 1 , &screen_rect,
+                             canvas->opengl_resource, &canvas->opengl_rect,
                              DISPMANX_PROTECTION_NONE, &alpha, 0, DISPMANX_NO_ROTATE);
 
     assert(canvas->opengl_element != 0);
 
     canvas->nativewindow.element = canvas->opengl_element;
-    canvas->nativewindow.width = canvas->screen_width;
-    canvas->nativewindow.height = canvas->screen_height;
+    canvas->nativewindow.width = 512;
+    canvas->nativewindow.height = 512;
     vc_dispmanx_update_submit_sync( canvas->update );
 
     EGLBoolean result;
@@ -61,7 +65,7 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
         EGL_ALPHA_SIZE, 8,
         EGL_LUMINANCE_SIZE, EGL_DONT_CARE,          //EGL_DONT_CARE
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_SAMPLES,        1,
+        EGL_SAMPLES,        2,
         EGL_NONE
     };
 
@@ -109,7 +113,7 @@ int stak_canvas_destroy(stak_canvas_s* canvas) {
 }
 int stak_canvas_copy(stak_canvas_s* canvas, char* dst, uint32_t pitch) {
     vc_dispmanx_snapshot(canvas->display, canvas->scaled_resource, 0);
-    vc_dispmanx_resource_read_data(canvas->scaled_resource, &canvas->fb_rect, dst, pitch);
+    vc_dispmanx_resource_read_data(canvas->scaled_resource, &canvas->scaled_rect, dst, pitch);
     return 0;
 }
 int stak_canvas_swap(stak_canvas_s* canvas) {
