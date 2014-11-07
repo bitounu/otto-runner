@@ -5,11 +5,13 @@
 #include <syslog.h>
 #include <assert.h>
 
+#define OPENGL_WIDTH 96
+#define OPENGL_HEIGHT 96
 static VC_RECT_T screen_rect;
 int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
 //#define RENDER_WINDOW_ONSCREEN
     bcm_host_init();
-    canvas->opengl_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, 512, 512, &canvas->opengl_ptr);
+    canvas->opengl_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, OPENGL_WIDTH, OPENGL_HEIGHT, &canvas->opengl_ptr);
     if (!canvas->opengl_resource)
     {
         syslog(LOG_ERR, "Unable to create OpenGL screen buffer");
@@ -33,11 +35,11 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     canvas->update = vc_dispmanx_update_start( 0 );
 
     graphics_get_display_size(canvas->display , &canvas->screen_width, &canvas->screen_height);
-    canvas->screen_width = 512;
-    canvas->screen_height = 512;
+    canvas->screen_width = OPENGL_WIDTH;
+    canvas->screen_height = OPENGL_HEIGHT;
 
-    vc_dispmanx_rect_set( &screen_rect, 0, 0, 512, 512 );
-    vc_dispmanx_rect_set( &canvas->opengl_rect, 0, 0, 512 << 16, 512 << 16 );
+    vc_dispmanx_rect_set( &screen_rect, 0, 0, OPENGL_WIDTH, OPENGL_HEIGHT );
+    vc_dispmanx_rect_set( &canvas->opengl_rect, 0, 0, OPENGL_WIDTH << 16, OPENGL_HEIGHT << 16 );
     vc_dispmanx_rect_set( &canvas->scaled_rect, 0, 0, canvas_w, canvas_h );
 
     VC_DISPMANX_ALPHA_T alpha = { DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS, 255, 0 };
@@ -49,11 +51,10 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     assert(canvas->opengl_element != 0);
 
     canvas->nativewindow.element = canvas->opengl_element;
-    canvas->nativewindow.width = 512;
-    canvas->nativewindow.height = 512;
+    canvas->nativewindow.width = OPENGL_WIDTH;
+    canvas->nativewindow.height = OPENGL_HEIGHT;
     vc_dispmanx_update_submit_sync( canvas->update );
 
-    EGLBoolean result;
     EGLint num_config;
 
 
@@ -78,10 +79,10 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     eglBindAPI(EGL_OPENVG_API);
 
     // initialize the EGL display connection
-    result = eglInitialize(canvas->egl_display, NULL, NULL);
+    eglInitialize(canvas->egl_display, NULL, NULL);
 
     // get an appropriate EGL frame buffer configuration
-    result = eglChooseConfig(canvas->egl_display, attribute_list, &config, 1, &num_config);
+    eglChooseConfig(canvas->egl_display, attribute_list, &config, 1, &num_config);
 
     // create an EGL rendering context
     canvas->context = eglCreateContext(canvas->egl_display, config, EGL_NO_CONTEXT, NULL);
@@ -90,7 +91,7 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     canvas->surface = eglCreateWindowSurface( canvas->egl_display, config, &canvas->nativewindow, NULL );
 
     // connect the context to the surface
-    result = eglMakeCurrent(canvas->egl_display, canvas->surface, canvas->surface, canvas->context);
+    eglMakeCurrent(canvas->egl_display, canvas->surface, canvas->surface, canvas->context);
     return 0;
 }
 
