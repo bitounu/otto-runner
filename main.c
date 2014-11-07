@@ -14,9 +14,9 @@
 #include <EGL/eglext.h>
 #include "VG/openvg.h"
 #include "VG/vgu.h"
-#include "graphics/fbdev/fbdev.h"
-#include "graphics/canvas/canvas.h"
-#include "graphics/seps114a/seps114a.h"
+#include <graphics/fbdev/fbdev.h>
+#include <graphics/canvas/canvas.h>
+#include <graphics/seps114a/seps114a.h>
 #define UNREF(X) ((void)(X))
 
 #include "tiger.h"
@@ -26,6 +26,16 @@ static framebuffer_device_s fb;
 static stak_seps114a_s lcd_device;
 static volatile sig_atomic_t terminate = 0;
 static float rotateN = 0.0f;
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
 
 int shutdown()
 {
@@ -37,6 +47,7 @@ int shutdown()
 
 void term(int signum)
 {
+    printf("Terminating...\n");
     terminate = 1;
 }
 typedef struct
@@ -318,8 +329,7 @@ int redraw()
 
     render(canvas.screen_width,canvas.screen_height);
     stak_canvas_swap(&canvas);
-    stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 16 / 8);
-    //usleep(25 * 1000);
+    stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
     return 0;
 }
 
@@ -333,9 +343,8 @@ int main(int argc, char **argv)
     setlogmask(LOG_UPTO(LOG_DEBUG));
     openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
     syslog(LOG_DEBUG, "Starting fb output");
-    uint64_t last_time, current_time;
-    current_time = get_time();
-    last_time = current_time;
+    uint64_t last_time, current_time, start_time, delta_time;
+    delta_time = start_time = last_time = current_time = get_time();
     int frames_this_second = 0;
     int frames_per_second = 0;
 
@@ -344,7 +353,7 @@ int main(int argc, char **argv)
     struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
     action.sa_handler = term;
-    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
 
     // clear application state
     memset( &fb, 0, sizeof( fb ) );
@@ -363,6 +372,8 @@ int main(int argc, char **argv)
     {
         frames_this_second++;
         current_time = get_time();
+
+        
         if(current_time > last_time + 1000000) {
             frames_per_second = frames_this_second;
             frames_this_second = 0;
@@ -370,8 +381,14 @@ int main(int argc, char **argv)
             printf("FPS: %i\n", frames_per_second);
         }
 
+        /*if(current_time > start_time + 30000000) {
+            terminate = 1;
+        }*/
         redraw();
         stak_seps114a_update(&lcd_device);
+        delta_time = (get_time() - current_time);
+        //printf("delta_time: %i\n", delta_time);
+        usleep(min(33000L, 33000L - max(0,delta_time)));
 
     }
     deinit();
