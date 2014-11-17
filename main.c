@@ -17,6 +17,8 @@
 #include <graphics/fbdev/fbdev.h>
 #include <graphics/canvas/canvas.h>
 #include <graphics/seps114a/seps114a.h>
+#include <graphics/tinypng/TinyPngOut.h>
+#include <io/bq27510/bq27510.h>
 #define UNREF(X) ((void)(X))
 
 #include "tiger.h"
@@ -24,6 +26,7 @@
 static stak_canvas_s canvas;
 static framebuffer_device_s fb;
 static stak_seps114a_s lcd_device;
+static stak_bq27510_device_s gauge_device;
 static volatile sig_atomic_t terminate = 0;
 static float rotateN = 0.0f;
 
@@ -338,6 +341,49 @@ uint64_t get_time() {
     clock_gettime(CLOCK_MONOTONIC, &timer);
     return (uint64_t) (timer.tv_sec) * 1000000L + timer.tv_nsec / 1000L;
 }
+int write_buffer_to_png() {
+    static char outbuffer[96*96*3];
+
+    uint8_t r,g,b;
+    uint16_t color;
+    int x, y;
+
+    for( y = 0 ; y < 96; y++) {
+        for( x = 0 ; x < 96; x++ ) {
+            color = lcd_device.framebuffer[y*96+x];
+            r = ((color) & 0xF800) >> 8;
+            g = ((color) & 0x7E0) >> 3;
+            b = ((color) & 0x1F) << 3;
+            outbuffer[y*(96*3)+x*3] = r;
+            outbuffer[y*(96*3)+x*3+1] = g;
+            outbuffer[y*(96*3)+x*3+2] = b;
+            //printf("%4x ", color);
+        }
+        //printf("\n");
+    }
+
+    FILE *fout = fopen("output.png", "wb");
+    struct TinyPngOut pngout;
+    if (fout == NULL || TinyPngOut_init(&pngout, fout, 96, 96) != TINYPNGOUT_OK)
+        goto error;
+    
+    // Write image data
+    if (TinyPngOut_write(&pngout, (unsigned char*)outbuffer, 96 * 96) != TINYPNGOUT_OK)
+        goto error;
+    
+    // Check for proper completion
+    if (TinyPngOut_write(&pngout, NULL, 0) != TINYPNGOUT_DONE)
+        goto error;
+    fclose(fout);
+    return 0;
+    
+error:
+    printf("Error\n");
+    if (fout != NULL)
+        fclose(fout);
+    return 1;
+}
+#define ZERO_OBJECT(_object) memset( &_object, 0, sizeof( _object ) );
 int main(int argc, char **argv)
 {
     setlogmask(LOG_UPTO(LOG_DEBUG));
@@ -351,14 +397,19 @@ int main(int argc, char **argv)
 
     // setup sigterm handler
     struct sigaction action;
-    memset(&action, 0, sizeof(struct sigaction));
+    ZERO_OBJECT( action );
     action.sa_handler = term;
     sigaction(SIGINT, &action, NULL);
 
     // clear application state
-    memset( &fb, 0, sizeof( fb ) );
-    memset( &canvas, 0, sizeof( canvas ) );
-    memset( &lcd_device, 0, sizeof( lcd_device ) );
+    ZERO_OBJECT( fb );
+    ZERO_OBJECT( canvas );
+    ZERO_OBJECT( lcd_device );
+    ZERO_OBJECT( gauge_device );
+    //memset( &fb, 0, sizeof( fb ) );
+    //memset( &canvas, 0, sizeof( canvas ) );
+    //memset( &lcd_device, 0, sizeof( lcd_device ) );
+    //memset( &gauge_device, 0, sizeof( gauge_device ) );
 
     //fbdev_open("/dev/fb1", &fb);
     stak_seps114a_init(&lcd_device);
@@ -367,6 +418,8 @@ int main(int argc, char **argv)
     printf("Created canvas of size: %ix%i\n", canvas.screen_width, canvas.screen_height);
 
     init( );
+    stak_bq27510_open("/dev/i2c-1", &gauge_device);
+    stak_bq27510_close(&gauge_device);
 
     while (!terminate)
     {
@@ -385,6 +438,7 @@ int main(int argc, char **argv)
             terminate = 1;
         }*/
         redraw();
+        //write_buffer_to_png();
         stak_seps114a_update(&lcd_device);
         delta_time = (get_time() - current_time);
         //printf("delta_time: %i\n", delta_time);
