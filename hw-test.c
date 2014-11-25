@@ -69,6 +69,8 @@ int watch_states[] = {
 	0,
 	0
 };
+int encoder_pin_a = 15, encoder_pin_b = 17;
+int last_encoded_value = 0, encoder_value;
 
 // SIGINT signal handler
 void term(int signum)
@@ -112,10 +114,8 @@ void init() {
 	bcm2835_gpio_fsel(17, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_fsel(23, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_set_pud(23, BCM2835_GPIO_PUD_UP);
-	bcm2835_gpio_set_pud(15, BCM2835_GPIO_PUD_DOWN);
-	bcm2835_gpio_set_pud(17, BCM2835_GPIO_PUD_DOWN);
-	bcm2835_gpio_ren(15);
-	bcm2835_gpio_ren(17);
+	bcm2835_gpio_set_pud(15, BCM2835_GPIO_PUD_UP);
+	bcm2835_gpio_set_pud(17, BCM2835_GPIO_PUD_UP);
 
 	setlogmask(LOG_UPTO(LOG_DEBUG));
 	openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
@@ -141,6 +141,24 @@ void redraw() {
 	stak_canvas_swap(&canvas);
 	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
+void update_encoder() {
+	const int encoding_matrix[4][4] = {
+		{ 0,-1, 1, 0},
+		{ 1, 0, 0,-1},
+		{-1, 0, 0, 1},
+		{ 0, 1,-1, 0}
+	};
+
+	int encoded = (bcm2835_gpio_lev(encoder_pin_a) << 1)
+				 | bcm2835_gpio_lev(encoder_pin_b);
+
+	int change = encoding_matrix[last_encoded_value][encoded];
+	encoder_value += change;
+	if(change != 0)
+		printf("Encoder value: %i\n", encoder_value);
+
+	last_encoded_value = encoded;
+}
 void update_pin_states() {
 	/*if( digitalRead(pin_shutter) != value_shutter ){
 		value_shutter = !value_shutter;
@@ -150,14 +168,8 @@ void update_pin_states() {
 			shutter_released();
 	}*/
 
-	if(bcm2835_gpio_eds(15) != 0) {
-		printf("Pin Triggered! %i\n", 15);
-		bcm2835_gpio_set_eds(17);
-	}
-	if(bcm2835_gpio_eds(17) != 0) {
-		printf("Pin Triggered! %i\n", 17);
-		bcm2835_gpio_set_eds(17);
-	}
+	
+	update_encoder();
 	if( bcm2835_gpio_lev(23) != watch_states[3] ){
 		watch_states[3] = !watch_states[3];
 		if(watch_states[3] == HIGH)
