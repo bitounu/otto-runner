@@ -1,5 +1,7 @@
-#include <wiringPi.h>
-#include <softTone.h>
+//#include <wiringPi.h>
+//#include <softTone.h>
+
+#include <bcm2835.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,11 +52,16 @@ int value_shutter = LOW;
 int value_rotary_left = LOW;
 int value_rotary_right = LOW;
 
-int watch_pins[] = {
-	14,
-	15
+int watch_pins[][2] = {
+	{14, BCM2835_GPIO_PUD_UP},
+	{15, BCM2835_GPIO_PUD_UP},
+	{17, BCM2835_GPIO_PUD_UP},
+	{23, BCM2835_GPIO_PUD_UP}
 };
 int watch_states[] = {
+	0,
+	0,
+	0,
 	0,
 	0,
 	0,
@@ -86,43 +93,53 @@ void init() {
 	struct sigaction action;
 
 	// clear application state
-	//	ZERO_OBJECT( fb );
-	//	ZERO_OBJECT( canvas );
-	//	ZERO_OBJECT( lcd_device );
-	//	ZERO_OBJECT( action );
+	ZERO_OBJECT( fb );
+	ZERO_OBJECT( canvas );
+	ZERO_OBJECT( lcd_device );
+	ZERO_OBJECT( action );
 
-	wiringPiSetup();
-	//pinMode(pin_shutter, INPUT);
-	//pinMode(pin_rotary_left, INPUT);
-	//pinMode(pin_rotary_right, INPUT);
-	int i = 0;
-	for(; i < sizeof(watch_pins)/sizeof(watch_pins[0]); i++) {
-		pinMode(watch_pins[i], INPUT);
+	if(!bcm2835_init()) {
+		printf("Failed to init BCM2835 library.\n");
+		return;
 	}
+	/*int i = 0;
+	for(; i < sizeof(watch_pins)/sizeof(watch_pins[0]); i++) {
+		bcm2835_gpio_fsel(watch_pins[i][0], BCM2835_GPIO_FSEL_INPT);
+		bcm2835_gpio_set_pud(watch_pins[i][0], watch_pins[i][1]);
+	}*/
+	bcm2835_gpio_fsel(14, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(15, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(17, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(23, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_set_pud(23, BCM2835_GPIO_PUD_UP);
+	bcm2835_gpio_set_pud(15, BCM2835_GPIO_PUD_DOWN);
+	bcm2835_gpio_set_pud(17, BCM2835_GPIO_PUD_DOWN);
+	bcm2835_gpio_ren(15);
+	bcm2835_gpio_ren(17);
 
-	//	setlogmask(LOG_UPTO(LOG_DEBUG));
-	//	openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
-	//	syslog(LOG_DEBUG, "Starting fb output");
+	setlogmask(LOG_UPTO(LOG_DEBUG));
+	openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
+	syslog(LOG_DEBUG, "Starting fb output");
 
 	// setup sigterm handler
 	action.sa_handler = term;
 	sigaction(SIGINT, &action, NULL);
 
 	// init seps114a
-	//stak_seps114a_init(&lcd_device);
-	//stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
+	stak_seps114a_init(&lcd_device);
+	stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
 }
 void shutdown() {
-	//stak_canvas_destroy(&canvas);
-	//stak_seps114a_close(&lcd_device);
+	stak_canvas_destroy(&canvas);
+	stak_seps114a_close(&lcd_device);
 }
 void redraw() {
 	// start with a clear screen
-	//glClear( GL_COLOR_BUFFER_BIT );
+	glClear( GL_COLOR_BUFFER_BIT );
 
 	//render(canvas.screen_width,canvas.screen_height);
-	//stak_canvas_swap(&canvas);
-	//stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
+	stak_canvas_swap(&canvas);
+	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
 void update_pin_states() {
 	/*if( digitalRead(pin_shutter) != value_shutter ){
@@ -133,12 +150,30 @@ void update_pin_states() {
 			shutter_released();
 	}*/
 
+	if(bcm2835_gpio_eds(15) != 0) {
+		printf("Pin Triggered! %i\n", 15);
+		bcm2835_gpio_set_eds(17);
+	}
+	if(bcm2835_gpio_eds(17) != 0) {
+		printf("Pin Triggered! %i\n", 17);
+		bcm2835_gpio_set_eds(17);
+	}
+	if( bcm2835_gpio_lev(23) != watch_states[3] ){
+		watch_states[3] = !watch_states[3];
+		if(watch_states[3] == HIGH)
+			printf("Pin Triggered! %i\n", 23);
+		if(watch_states[3] == LOW)
+			printf("Pin Released! %i\n", 23);
+	}
+	//bcm2835_gpio_set(23);
 	/*int i = 0;
 	for(; i < sizeof(watch_pins)/sizeof(watch_pins[0]); i++) {
-		if( digitalRead(watch_pins[i]) != watch_states[i] ){
+		if( bcm2835_gpio_lev(watch_pins[i][0]) != watch_states[i] ){
 			watch_states[i] = !watch_states[i];
 			if(watch_states[i] == HIGH)
-				printf("Pin Triggered! %i\n", watch_pins[i]);
+				printf("Pin Triggered! %i\n", watch_pins[i][0]);
+			if(watch_states[i] == LOW)
+				printf("Pin Released! %i\n", watch_pins[i][0]);
 		}
 	}*/
 	/*if( digitalRead(pin_rotary_left) != value_rotary_left ){

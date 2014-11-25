@@ -1,10 +1,10 @@
 OBJS=\
-	hw-test.o #\
-	#tiger.o\
-	#graphics/fbdev/fbdev.o\
-	#graphics/seps114a/seps114a.o\
-	#graphics/canvas/canvas.o\
+	hw-test.o \
+	graphics/seps114a/seps114a.o\
+	graphics/canvas/canvas.o #\
 	# graphics/tinypng/TinyPngOut.o\
+	#graphics/fbdev/fbdev.o\
+	#tiger.o\
 	#io/bq27510/bq27510.o
 SRCS=$(patsubst %.o,%.c,$(OBJS))
 BIN=stak-test
