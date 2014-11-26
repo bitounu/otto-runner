@@ -28,14 +28,21 @@ void init();
 void shutdown();
 void redraw();
 void update_pin_states();
-void shutter_pressed();
-void shutter_released();
-void rotary_left();
-void rotary_right();
+
+int get_shutter_pressed();
+int get_shutter_released();
+int get_rotary_pressed();
+int get_rotary_released();
+int get_rotary_position();
+
+void shutter_test();
+void rotary_left_test();
+void rotary_right_test();
+
 
 // helper macros
-#define ZERO_OBJECT(_object) memset( &_object, 0, sizeof( _object ) );
-
+#define ZERO_OBJECT(_object) memset( &_object, 0, sizeof( _object ) )
+#define ARRAY_COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
 
 // global state
 static stak_canvas_s canvas;
@@ -44,33 +51,31 @@ static stak_seps114a_s lcd_device;
 static volatile sig_atomic_t terminate = 0;
 
 // gpio settings and state
-const int pin_shutter = 22;
-const int pin_rotary_left = 25;
-const int pin_rotary_right = 17;
+const int pin_shutter = 23;
+const int pin_rotary_button = 14;
+const int pin_rotary_a = 15;
+const int pin_rotary_b = 17;
 
 int value_shutter = LOW;
 int value_rotary_left = LOW;
 int value_rotary_right = LOW;
-
-int watch_pins[][2] = {
-	{14, BCM2835_GPIO_PUD_UP},
-	{15, BCM2835_GPIO_PUD_UP},
-	{17, BCM2835_GPIO_PUD_UP},
-	{23, BCM2835_GPIO_PUD_UP}
-};
-int watch_states[] = {
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0
-};
-int encoder_pin_a = 15, encoder_pin_b = 17;
+int shutter_state = 1;
+int rotary_switch_State = 0;
 int last_encoded_value = 0, encoder_value;
+
+
+// simple test framework
+void run_test();
+void next_test();
+
+int current_test = 0;
+
+typedef void ( *test_fptr_t )( void );
+
+test_fptr_t tests[] = {
+	shutter_test
+};
+
 
 // SIGINT signal handler
 void term(int signum)
@@ -104,18 +109,14 @@ void init() {
 		printf("Failed to init BCM2835 library.\n");
 		return;
 	}
-	/*int i = 0;
-	for(; i < sizeof(watch_pins)/sizeof(watch_pins[0]); i++) {
-		bcm2835_gpio_fsel(watch_pins[i][0], BCM2835_GPIO_FSEL_INPT);
-		bcm2835_gpio_set_pud(watch_pins[i][0], watch_pins[i][1]);
-	}*/
-	bcm2835_gpio_fsel(14, BCM2835_GPIO_FSEL_INPT);
-	bcm2835_gpio_fsel(15, BCM2835_GPIO_FSEL_INPT);
-	bcm2835_gpio_fsel(17, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(pin_rotary_button, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_fsel(23, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_set_pud(23, BCM2835_GPIO_PUD_UP);
-	bcm2835_gpio_set_pud(15, BCM2835_GPIO_PUD_UP);
-	bcm2835_gpio_set_pud(17, BCM2835_GPIO_PUD_UP);
+	bcm2835_gpio_set_pud(pin_rotary_button, BCM2835_GPIO_PUD_UP);
+	bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
+	bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
 
 	setlogmask(LOG_UPTO(LOG_DEBUG));
 	openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
@@ -138,6 +139,7 @@ void redraw() {
 	glClear( GL_COLOR_BUFFER_BIT );
 
 	//render(canvas.screen_width,canvas.screen_height);
+	run_test();
 	stak_canvas_swap(&canvas);
 	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
@@ -149,66 +151,51 @@ void update_encoder() {
 		{ 0, 1,-1, 0}
 	};
 
-	int encoded = (bcm2835_gpio_lev(encoder_pin_a) << 1)
-				 | bcm2835_gpio_lev(encoder_pin_b);
+	int encoded = (bcm2835_gpio_lev(pin_rotary_a) << 1)
+				 | bcm2835_gpio_lev(pin_rotary_b);
 
 	int change = encoding_matrix[last_encoded_value][encoded];
 	encoder_value += change;
-	if(change != 0)
+	if(change != 0) {
 		printf("Encoder value: %i\n", encoder_value);
+	}
 
 	last_encoded_value = encoded;
 }
+
+void run_test() {
+	tests[current_test]();
+}
+void next_test() {
+	if(current_test < ARRAY_COUNT(tests))
+		current_test++;
+}
+
 void update_pin_states() {
-	/*if( digitalRead(pin_shutter) != value_shutter ){
-		value_shutter = !value_shutter;
-		if(value_shutter == HIGH)
-			shutter_pressed();
-		else
-			shutter_released();
-	}*/
-
-	
 	update_encoder();
-	if( bcm2835_gpio_lev(23) != watch_states[3] ){
-		watch_states[3] = !watch_states[3];
-		if(watch_states[3] == HIGH)
-			printf("Pin Triggered! %i\n", 23);
-		if(watch_states[3] == LOW)
-			printf("Pin Released! %i\n", 23);
-	}
-	//bcm2835_gpio_set(23);
-	/*int i = 0;
-	for(; i < sizeof(watch_pins)/sizeof(watch_pins[0]); i++) {
-		if( bcm2835_gpio_lev(watch_pins[i][0]) != watch_states[i] ){
-			watch_states[i] = !watch_states[i];
-			if(watch_states[i] == HIGH)
-				printf("Pin Triggered! %i\n", watch_pins[i][0]);
-			if(watch_states[i] == LOW)
-				printf("Pin Released! %i\n", watch_pins[i][0]);
-		}
-	}*/
-	/*if( digitalRead(pin_rotary_left) != value_rotary_left ){
-		value_rotary_left = !value_rotary_left;
-		if(value_rotary_left == HIGH)
-			rotary_left();
+
+	if( bcm2835_gpio_lev(pin_shutter) != shutter_state ){
+		shutter_state = !shutter_state;
 	}
 
-	if( digitalRead(pin_rotary_right) != value_rotary_right ){
-		value_rotary_right = !value_rotary_right;
-		if(value_rotary_right == HIGH)
-			rotary_right();
-	}*/
+	if( bcm2835_gpio_lev(pin_rotary_button) != rotary_switch_State ){
+		rotary_switch_State = !rotary_switch_State;
+	}
 }
-void shutter_pressed() {
-	printf("Shutter pressed!\n");
+
+int get_shutter_pressed() {
+	return (shutter_state == HIGH);
 }
-void shutter_released() {
-	printf("Shutter released!\n");
+int get_rotary_pressed() {
+	return (rotary_switch_State == HIGH);
 }
-void rotary_left() {
-	printf("Rotary turned left!\n");
+int get_rotary_position() {
+	return encoder_value;
 }
-void rotary_right() {
-	printf("Rotary turned right!\n");
+
+void shutter_test() {
+	printf("Please press the shutter switch.\n");
+	if(get_shutter_pressed()) {
+		next_test();
+	}
 }
