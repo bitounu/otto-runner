@@ -61,12 +61,13 @@ const int pin_shutter = 23;
 const int pin_rotary_button = 17;
 const int pin_rotary_a = 15;
 const int pin_rotary_b = 14;
+const int pin_pwm = 18;
 
 int value_shutter = LOW;
 int value_rotary_left = LOW;
 int value_rotary_right = LOW;
 int shutter_state = 1;
-int rotary_switch_State = 0;
+int rotary_switch_State = 1;
 volatile int last_encoded_value = 0, encoder_value = 0;
 int testing_position = 0;
 
@@ -124,11 +125,16 @@ void init() {
 	bcm2835_gpio_fsel(pin_rotary_button, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
+	bcm2835_gpio_fsel(pin_pwm, BCM2835_GPIO_FSEL_ALT5);
 	bcm2835_gpio_fsel(23, BCM2835_GPIO_FSEL_INPT);
 	bcm2835_gpio_set_pud(23, BCM2835_GPIO_PUD_UP);
 	bcm2835_gpio_set_pud(pin_rotary_button, BCM2835_GPIO_PUD_UP);
 	bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
 	bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
+	bcm2835_pwm_set_clock(BCM2835_PWM_CLOCK_DIVIDER_16);
+	bcm2835_pwm_set_mode(0, 1, 1);
+	bcm2835_pwm_set_range(0, 1000);
+	bcm2835_pwm_set_data(0, 32);
 
 	setlogmask(LOG_UPTO(LOG_DEBUG));
 	openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
@@ -143,6 +149,7 @@ void init() {
 	stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
 
 	pthread_create(&thread_rotary_poll, NULL, update_encoder, NULL);
+	printf("Please press shutter button.\n");
 }
 void shutdown() {
 	if(pthread_join(thread_rotary_poll, NULL)) {
@@ -158,8 +165,8 @@ void redraw() {
 
 	//render(canvas.screen_width,canvas.screen_height);
 	run_test();
-	//stak_canvas_swap(&canvas);
-	//stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
+	stak_canvas_swap(&canvas);
+	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
 void* update_encoder(void* arg) {
 	const int encoding_matrix[4][4] = {
@@ -175,9 +182,8 @@ void* update_encoder(void* arg) {
 
 		int change = encoding_matrix[last_encoded_value][encoded];
 		encoder_value += change;
-		if(change != 0) {
-			printf("Encoder value: %i\n", encoder_value);
-		}
+		if(change != 0)
+			bcm2835_pwm_set_data(0, (1024/32)*encoder_value);
 		last_encoded_value = encoded;
 	}
 }
@@ -198,7 +204,6 @@ void update_pin_states() {
 
 	if( bcm2835_gpio_lev(pin_rotary_button) != rotary_switch_State ){
 		rotary_switch_State = !rotary_switch_State;
-		printf("Rotary button changed!");
 	}
 }
 
@@ -229,11 +234,14 @@ void rotary_left_test() {
 void rotary_right_test() {
 	if(encoder_value > testing_position + 15) {
 		next_test();
-		printf("Please press shutter when camera input verified on OLED.\n");
+		printf("Please press Rotary switch.\n");
 	}
 }
 void rotary_switch_test() {
-	next_test();
+	if(get_rotary_pressed()) {
+		next_test();
+		printf("Please press shutter when camera input verified on OLED.\n");
+	}
 }
 void camera_test() {
 	if(get_shutter_pressed()) {
