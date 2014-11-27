@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
+#include <pthread.h>
 
 
 #include <GLES2/gl2.h>
@@ -28,6 +29,7 @@ void init();
 void shutdown();
 void redraw();
 void update_pin_states();
+void* update_encoder(void* arg);
 
 int get_shutter_pressed();
 int get_shutter_released();
@@ -52,19 +54,20 @@ static stak_canvas_s canvas;
 static framebuffer_device_s fb;
 static stak_seps114a_s lcd_device;
 static volatile sig_atomic_t terminate = 0;
+pthread_t thread_rotary_poll;
 
 // gpio settings and state
 const int pin_shutter = 23;
 const int pin_rotary_button = 17;
-const int pin_rotary_a = 14;
-const int pin_rotary_b = 15;
+const int pin_rotary_a = 15;
+const int pin_rotary_b = 14;
 
 int value_shutter = LOW;
 int value_rotary_left = LOW;
 int value_rotary_right = LOW;
 int shutter_state = 1;
 int rotary_switch_State = 0;
-int last_encoded_value = 0, encoder_value;
+volatile int last_encoded_value = 0, encoder_value = 0;
 int testing_position = 0;
 
 
@@ -138,8 +141,14 @@ void init() {
 	// init seps114a
 	stak_seps114a_init(&lcd_device);
 	stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
+
+	pthread_create(&thread_rotary_poll, NULL, update_encoder, NULL);
 }
 void shutdown() {
+	if(pthread_join(thread_rotary_poll, NULL)) {
+		fprintf(stderr, "Error joining thread\n");
+		return;
+	}
 	stak_canvas_destroy(&canvas);
 	stak_seps114a_close(&lcd_device);
 }
@@ -152,7 +161,7 @@ void redraw() {
 	//stak_canvas_swap(&canvas);
 	//stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
-void update_encoder() {
+void* update_encoder(void* arg) {
 	const int encoding_matrix[4][4] = {
 		{ 0,-1, 1, 0},
 		{ 1, 0, 0,-1},
@@ -160,15 +169,17 @@ void update_encoder() {
 		{ 0, 1,-1, 0}
 	};
 
-	int encoded = (bcm2835_gpio_lev(pin_rotary_a) << 1)
-				 | bcm2835_gpio_lev(pin_rotary_b);
+	while(!terminate) {
+		int encoded = (bcm2835_gpio_lev(pin_rotary_a) << 1)
+					 | bcm2835_gpio_lev(pin_rotary_b);
 
-	int change = encoding_matrix[last_encoded_value][encoded];
-	encoder_value += change;
-	if(change != 0) {
-		printf("Encoder value: %i\n", encoder_value);
+		int change = encoding_matrix[last_encoded_value][encoded];
+		encoder_value += change;
+		if(change != 0) {
+			printf("Encoder value: %i\n", encoder_value);
+		}
+		last_encoded_value = encoded;
 	}
-	last_encoded_value = encoded;
 }
 
 void run_test() {
@@ -180,7 +191,6 @@ void next_test() {
 }
 
 void update_pin_states() {
-	update_encoder();
 
 	if( bcm2835_gpio_lev(pin_shutter) != shutter_state ){
 		shutter_state = !shutter_state;
@@ -228,7 +238,7 @@ void rotary_switch_test() {
 void camera_test() {
 	if(get_shutter_pressed()) {
 		next_test();
-		printf("Tests succeeded!.\n");
+		printf("Tests succeeded!\n");
 	}
 }
 void finished_tests() {
