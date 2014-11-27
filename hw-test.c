@@ -38,11 +38,14 @@ int get_rotary_position();
 void shutter_test();
 void rotary_left_test();
 void rotary_right_test();
+void rotary_switch_test();
+void camera_test();
+void finished_tests();
 
 
 // helper macros
 #define ZERO_OBJECT(_object) memset( &_object, 0, sizeof( _object ) )
-#define ARRAY_COUNT(_array) (sizeof(_array) / sizeof(_array[0]))
+#define ARRAY_COUNT(_array) ( sizeof(_array) / sizeof(_array[0]) )
 
 // global state
 static stak_canvas_s canvas;
@@ -52,9 +55,9 @@ static volatile sig_atomic_t terminate = 0;
 
 // gpio settings and state
 const int pin_shutter = 23;
-const int pin_rotary_button = 14;
-const int pin_rotary_a = 15;
-const int pin_rotary_b = 17;
+const int pin_rotary_button = 17;
+const int pin_rotary_a = 14;
+const int pin_rotary_b = 15;
 
 int value_shutter = LOW;
 int value_rotary_left = LOW;
@@ -62,6 +65,7 @@ int value_rotary_right = LOW;
 int shutter_state = 1;
 int rotary_switch_State = 0;
 int last_encoded_value = 0, encoder_value;
+int testing_position = 0;
 
 
 // simple test framework
@@ -73,7 +77,12 @@ int current_test = 0;
 typedef void ( *test_fptr_t )( void );
 
 test_fptr_t tests[] = {
-	shutter_test
+	shutter_test,
+	rotary_left_test,
+	rotary_right_test,
+	rotary_switch_test,
+	camera_test,
+	finished_tests
 };
 
 
@@ -90,7 +99,7 @@ int main(int argc, char** argv) {
 	while(!terminate) {
 		update_pin_states();
 		redraw();
-		//	stak_seps114a_update(&lcd_device);
+		stak_seps114a_update(&lcd_device);
 	}
 	shutdown();
 	return 0;
@@ -140,8 +149,8 @@ void redraw() {
 
 	//render(canvas.screen_width,canvas.screen_height);
 	run_test();
-	stak_canvas_swap(&canvas);
-	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
+	//stak_canvas_swap(&canvas);
+	//stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
 void update_encoder() {
 	const int encoding_matrix[4][4] = {
@@ -159,7 +168,6 @@ void update_encoder() {
 	if(change != 0) {
 		printf("Encoder value: %i\n", encoder_value);
 	}
-
 	last_encoded_value = encoded;
 }
 
@@ -180,11 +188,12 @@ void update_pin_states() {
 
 	if( bcm2835_gpio_lev(pin_rotary_button) != rotary_switch_State ){
 		rotary_switch_State = !rotary_switch_State;
+		printf("Rotary button changed!");
 	}
 }
 
 int get_shutter_pressed() {
-	return (shutter_state == HIGH);
+	return (shutter_state == LOW);
 }
 int get_rotary_pressed() {
 	return (rotary_switch_State == HIGH);
@@ -194,8 +203,34 @@ int get_rotary_position() {
 }
 
 void shutter_test() {
-	printf("Please press the shutter switch.\n");
 	if(get_shutter_pressed()) {
 		next_test();
+		printf("Please rotate rotary to the left.\n");
+		testing_position = encoder_value;
 	}
+}
+void rotary_left_test() {
+	if(encoder_value < testing_position - 15) {
+		next_test();
+		printf("Please rotate rotary to the right.\n");
+		testing_position = encoder_value;
+	}
+}
+void rotary_right_test() {
+	if(encoder_value > testing_position + 15) {
+		next_test();
+		printf("Please press shutter when camera input verified on OLED.\n");
+	}
+}
+void rotary_switch_test() {
+	next_test();
+}
+void camera_test() {
+	if(get_shutter_pressed()) {
+		next_test();
+		printf("Tests succeeded!.\n");
+	}
+}
+void finished_tests() {
+	terminate = 1;
 }
