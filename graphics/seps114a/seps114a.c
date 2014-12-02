@@ -1,4 +1,4 @@
-//#include <io/dma.h>
+///#include <io/dma.h>
 #include "seps114a.h"
 #include <bcm2835.h>
 #include <unistd.h>
@@ -61,17 +61,17 @@
 
 const int STAK_SEPS114A_PIN_RST = 24;
 const int STAK_SEPS114A_PIN_DC = 25;
-const int STAK_SEPS114A_PIN_CS = RPI_GPIO_P1_24;
+const int STAK_SEPS114A_PIN_CS = 7;
 const int STAK_SEPS114A_SPI_MODE = SPI_MODE_0 | SPI_NO_CS;
 const int STAK_SEPS114A_SPI_BPW = 8;
 const int STAK_SEPS114A_SPI_SPEED = 4000000;
 
-//#define STAK_SEPS114A_USE_SPIDEV
+#define STAK_SEPS114A_USE_SPIDEV
 
 int stak_seps114a_init(stak_seps114a_s* device) {
-	if(!bcm2835_init()) {
-		return -1;
-	}
+    if(!bcm2835_init()) {
+        return -1;
+    }
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_RST, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_DC, BCM2835_GPIO_FSEL_OUTP);
 #ifdef STAK_SEPS114A_USE_SPIDEV
@@ -96,62 +96,78 @@ int stak_seps114a_init(stak_seps114a_s* device) {
     assert(ioctl (device->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) != -1);
     //assert(ioctl (device->spi_fd, SPI_IOC_RD_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) != -1);
 #else
-	bcm2835_spi_begin();
-	bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);
-	bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-	bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64);    // ~ 4 MHz
-	bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
-	bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
+    bcm2835_spi_begin();
+    bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);
+    bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64);    // ~ 4 MHz
+    bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
+    bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 #endif
 
-    char stak_seps114a_init_commands[] = {
-        SEPS114A_SOFT_RESET,           0x00,
-        SEPS114A_STANDBY_ON_OFF,       0x01,  // Standby on
-        0x00, 0x00,
-        SEPS114A_STANDBY_ON_OFF,       0x00,  // Standby off
-        0x00, 0x00,
-        SEPS114A_DISPLAY_ON_OFF,       0x00,
-        SEPS114A_ANALOG_CONTROL,       0x00,  // using external resistor and internal OSC
-        SEPS114A_OSC_ADJUST,           0x03,  // frame rate : 95Hz
-        SEPS114A_DISPLAY_X1,           0x00,
-        SEPS114A_DISPLAY_X2,           0x5F,
-        SEPS114A_DISPLAY_Y1,           0x00,
-        SEPS114A_DISPLAY_Y2,           0x5F,
-        SEPS114A_RGB_IF,               0x00,  // RGB 8bit interface
-        SEPS114A_RGB_POL,              0x00,
-        SEPS114A_DISPLAY_MODE_CONTROL, 0x80,  // SWAP:BGR, Reduce current : Normal, DC[1:0] : Normal
-        SEPS114A_CPU_IF,               0x00,  // MPU External interface mode, 8bits
-        SEPS114A_MEMORY_WRITE_READ,    0x00,
-        SEPS114A_ROW_SCAN_DIRECTION,   0x00,  // Column : 0 --> Max, Row : 0 --> Max
-        SEPS114A_ROW_SCAN_MODE,        0x00,  // Alternate scan mode
-        SEPS114A_DISPLAY_Y2,           0x00,
-        SEPS114A_COLUMN_CURRENT_R,     0x6E,
-        SEPS114A_COLUMN_CURRENT_G,     0x4F,
-        SEPS114A_COLUMN_CURRENT_B,     0x77,
-        SEPS114A_ROW_OVERLAP,          0x00,
-        SEPS114A_DISCHARGE_TIME,       0x01,
-        SEPS114A_PEAK_PULSE_DELAY,     0x00,
-        SEPS114A_PEAK_PULSE_WIDTH_R,   0x02,
-        SEPS114A_PEAK_PULSE_WIDTH_G,   0x02,
-        SEPS114A_PEAK_PULSE_WIDTH_B,   0x02,
-        SEPS114A_ROW_SCAN_ON_OFF,      0x00,  // Normal row scan
-        SEPS114A_SCAN_OFF_LEVEL,       0x04,  // VCC_C*0.75
-        SEPS114A_DISPLAYSTART_X,       0x00,
-        SEPS114A_DISPLAYSTART_Y,       0x00,
-        SEPS114A_DISPLAY_ON_OFF,       0x01,
-        SEPS114A_MEMORY_WRITE_READ,    0x02
-    };
 
-    int i = 0;
-
-    for(; i < sizeof(stak_seps114a_init_commands); i+=2)
-        if(stak_seps114a_init_commands[i] == 0x00)
-            usleep(5000);
-        else
-            stak_seps114a_write_command_value(device, stak_seps114a_init_commands[i], stak_seps114a_init_commands[i+1]);
+    stak_seps114a_write_command_value(device, SEPS114A_SOFT_RESET,0x00);      
+    // Standby ON/OFF
+    stak_seps114a_write_command_value(device, SEPS114A_STANDBY_ON_OFF,0x01);          // Standby on
+    usleep(5000);                                           // Wait for 5ms (1ms Delay Minimum)
+    stak_seps114a_write_command_value(device, SEPS114A_STANDBY_ON_OFF,0x00);          // Standby off
+    usleep(5000);                                           // 1ms Delay Minimum (1ms Delay Minimum)
+    // Display OFF
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x00);
+    // Set Oscillator operation
+    stak_seps114a_write_command_value(device, SEPS114A_ANALOG_CONTROL,0x00);          // using external resistor and internal OSC
+    // Set frame rate
+    stak_seps114a_write_command_value(device, SEPS114A_OSC_ADJUST,0x03);              // frame rate : 95Hz
+    // Set active display area of panel
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_X1,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_X2,0x5F);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_Y1,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_Y2,0x5F);
+    // Select the RGB data format and set the initial state of RGB interface port
+    stak_seps114a_write_command_value(device, SEPS114A_RGB_IF,0x00);                 // RGB 8bit interface
+    // Set RGB polarity
+    stak_seps114a_write_command_value(device, SEPS114A_RGB_POL,0x00);
+    // Set display mode control
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_MODE_CONTROL,0x80);   // SWAP:BGR, Reduce current : Normal, DC[1:0] : Normal
+    // Set MCU Interface
+    stak_seps114a_write_command_value(device, SEPS114A_CPU_IF,0x00);                 // MPU External interface mode, 8bits
+    // Set Memory Read/Write mode
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
+    // Set row scan direction
+    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_DIRECTION,0x00);     // Column : 0 --> Max, Row : 0 --> Max
+    // Set row scan mode
+    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_MODE,0x00);          // Alternate scan mode
+    // Set column current
+    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_R,0x6E);
+    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_G,0x4F);
+    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_B,0x77);
+    // Set row overlap
+    stak_seps114a_write_command_value(device, SEPS114A_ROW_OVERLAP,0x00);            // Band gap only
+    // Set discharge time
+    stak_seps114a_write_command_value(device, SEPS114A_DISCHARGE_TIME,0x01);         // Discharge time : normal discharge
+    // Set peak pulse delay
+    stak_seps114a_write_command_value(device, SEPS114A_PEAK_PULSE_DELAY,0x00);
+    // Set peak pulse width
+    stak_seps114a_write_command_value(device, SEPS114A_PEAK_PULSE_WIDTH_R,0x02);
+    stak_seps114a_write_command_value(device, SEPS114A_PEAK_PULSE_WIDTH_G,0x02);
+    stak_seps114a_write_command_value(device, SEPS114A_PEAK_PULSE_WIDTH_B,0x02);
+    // Set precharge current
+    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_R,0x14);
+    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_G,0x50);
+    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_B,0x19);
+    // Set row scan on/off 
+    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_ON_OFF,0x00);        // Normal row scan
+    // Set scan off level
+    stak_seps114a_write_command_value(device, SEPS114A_SCAN_OFF_LEVEL,0x04);         // VCC_C*0.75
+    // Set memory access point
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
+    // Display ON
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x02);
 
     device->framebuffer = NULL;
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
+    //memset(device->framebuffer, 0xff,96*96*2);
     return 0;
 }
 inline uint16_t swap_rgb (uint16_t rgb)
@@ -160,18 +176,25 @@ inline uint16_t swap_rgb (uint16_t rgb)
              ((rgb >> 8) & 0xff));
 }
 inline void stak_seps114a_spidev_write(stak_seps114a_s* device, char* data, int length) {
-    struct spi_ioc_transfer message = {
-        .tx_buf = ((uint64_t) (uint32_t)data),
-        .rx_buf = 0,
+    /*struct spi_ioc_transfer message = {
+        .tx_buf = (unsigned long) data,
+        .rx_buf = (unsigned long) data,
         .len = length,
         .delay_usecs = 0,
         .speed_hz = STAK_SEPS114A_SPI_SPEED,
         .bits_per_word = STAK_SEPS114A_SPI_BPW,
         .cs_change = 0,
-    };
+    };*/
+    struct spi_ioc_transfer message;
+    memset(&message, 0, sizeof(message));
+    message.tx_buf = ((uint64_t) (uint32_t)data);
+    message.len = length;
+    message.delay_usecs = 0;
+    message.speed_hz = STAK_SEPS114A_SPI_SPEED;
+    message.bits_per_word = STAK_SEPS114A_SPI_BPW;
+    message.cs_change = 0;
     ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message);
 }
-
 int stak_seps114a_close(stak_seps114a_s* device) {
 
     memset(device->framebuffer, 0x00,96*96*2);
@@ -188,21 +211,19 @@ int stak_seps114a_close(stak_seps114a_s* device) {
     return 0;
 }
 int stak_seps114a_update(stak_seps114a_s* device) {
-    
+    uint16_t *vmem16 = (uint16_t *)device->framebuffer;
     int x, y;
 
-    for (y = 0; y < 96; y++) {
-        for (x = 0; x < 96; x++) {
-            device->framebuffer[y*96+x] = swap_rgb(device->framebuffer[y*96+x]);
-        }
-    }
-    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
-    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x01);
     stak_seps114a_write_command(device, SEPS114A_DDRAM_DATA_ACCESS_PORT);
 
+    for (x = 0; x < 96; x++) {
+        for (y = 0; y < 96; y++) {
+            vmem16[y*96+x] = swap_rgb(vmem16[y*96+x]);
+        }
+    }
     GPIO_ON(STAK_SEPS114A_PIN_DC);
 
-    stak_seps114a_write_data(device, (char*)device->framebuffer, 96*96*2);
+    stak_seps114a_write_data(device, (char*)vmem16, 96*96*2);
     return 0;
 }
 int stak_seps114a_write_byte(stak_seps114a_s* device, char data_value) {
@@ -242,7 +263,7 @@ int stak_seps114a_write_command(stak_seps114a_s* device, char reg_index) {
     return 0;
 }
 int stak_seps114a_write_command_value(stak_seps114a_s* device, char reg_index, char reg_value) {
-	//Select index addr
+    //Select index addr
 #ifdef STAK_SEPS114A_USE_SPIDEV
     GPIO_OFF(STAK_SEPS114A_PIN_DC);
     GPIO_OFF(STAK_SEPS114A_PIN_CS);

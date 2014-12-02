@@ -11,8 +11,18 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <errno.h>
+#include <pthread.h>
 
 #define STAK_USE_I2C_DEVICE
+volatile int stak_bq27510_update_thread_terminate = 0;
+pthread_t stak_bq27510_update_thread_poll;
+
+volatile struct {
+
+}stak_bq27510_battery_state;
+
+void* stak_bq27510_update_thread(void* arg);
+
 
 unsigned int transBytes2Int(unsigned char msb, unsigned char lsb)
 {
@@ -48,7 +58,7 @@ int bq_read(stak_bq27510_device_s* device, unsigned char reg, int bytes, char *i
 	if (err != 1) {
 	    fprintf(stderr, "\nError: 0x%x - i2c transaction failure! b \n", err);
 	}
-	usleep(7500);
+	usleep(10);
 
 	err = read(device->device_fd, i2c_buf, bytes);
 	if (err != bytes) {
@@ -57,40 +67,6 @@ int bq_read(stak_bq27510_device_s* device, unsigned char reg, int bytes, char *i
 	}
 
 	return 0;
-}
-int
-i2c_read16(stak_bq27510_device_s* device, char reg) {
-	char buf[3], rbuf[2] = {0x00, 0x00};
-	struct i2c_rdwr_ioctl_data msgset;
-	struct i2c_msg iomsgs[2] = {
-		{
-			.addr = (unsigned) 0x55,
-			.flags = 0,
-			.buf = buf,
-			.len = 2
-		},
-		{
-
-			.addr = (unsigned) 0x55,
-			.flags = I2C_M_RD,
-			.buf = rbuf,
-			.len = 2
-		}
-	};
-	int rc;
-
-	buf[0] = (reg & 0xFF00) >> 8;
-	buf[1] = (reg & 0x00FF);
-
-	msgset.msgs = iomsgs;
-	msgset.nmsgs = 2;
-
-	rc = ioctl(device->device_fd,I2C_RDWR,&msgset);
-	if(rc < 0) {
-		return -1;
-	}
-	i2c_smbus_read_word_data(device->device_fd, reg);
-	return (rbuf[0] << 8) | rbuf[1];
 }
 
 int stak_bq27510_open(char* filename, stak_bq27510_device_s* device) {
@@ -115,6 +91,8 @@ int stak_bq27510_open(char* filename, stak_bq27510_device_s* device) {
 
 	bq_read(device, 0x20, 2, buf);
 	printf("\tCapacity: %i%%\n", ((int)transBytes2Int(buf[1], buf[0])));
+
+	//pthread_create(&stak_bq27510_update_thread_poll, NULL, stak_bq27510_update_thread, NULL);
 #else
 	bcm2835_i2c_begin();
 	bcm2835_i2c_setSlaveAddress(0x55);
@@ -130,8 +108,19 @@ int stak_bq27510_open(char* filename, stak_bq27510_device_s* device) {
 #endif
 	return 0;
 }
+void* stak_bq27510_update_thread(void* arg) {
+	/*while(!stak_bq27510_update_thread_terminate) {
+		bq_read(device, 0x08, 2, buf);
+		voltage = ((float)transBytes2Int(buf[1],buf[0]))/1000.0f;
+	}*/
+}
 int stak_bq27510_close(stak_bq27510_device_s* device) {
 #ifdef STAK_USE_I2C_DEVICE
+	/*stak_bq27510_update_thread_terminate = true;
+	if(pthread_join(stak_bq27510_update_thread_poll, NULL)) {
+		fprintf(stderr, "Error joining thread\n");
+		return;
+	}*/
 	close(device->device_fd);
 #else
 	bcm2835_i2c_end();

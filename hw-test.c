@@ -31,6 +31,7 @@ void shutdown();
 void redraw();
 void update_pin_states();
 void* update_encoder(void* arg);
+void* update_display(void* arg);
 
 int get_shutter_pressed();
 int get_shutter_released();
@@ -56,7 +57,7 @@ static framebuffer_device_s fb;
 static stak_seps114a_s lcd_device;
 static stak_bq27510_device_s gauge_device;
 static volatile sig_atomic_t terminate = 0;
-pthread_t thread_rotary_poll;
+pthread_t thread_rotary_poll, thread_seps114a_update;
 
 // gpio settings and state
 const int pin_shutter = 23;
@@ -91,7 +92,28 @@ test_fptr_t tests[] = {
 	finished_tests
 };
 
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
 
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
+uint64_t get_time() {
+    struct timespec timer;
+    clock_gettime(CLOCK_MONOTONIC, &timer);
+    return (uint64_t) (timer.tv_sec) * 1000000L + timer.tv_nsec / 1000L;
+}
+
+typedef struct framerate_lock {
+    uint64_t last_time, current_time, start_time, delta_time;
+    delta_time = start_time = last_time = current_time = get_time();
+    int frames_this_second = 0;
+    int frames_per_second = 0;
+};
 // SIGINT signal handler
 void term(int signum)
 {
@@ -100,12 +122,31 @@ void term(int signum)
 }
 
 int main(int argc, char** argv) {
+    uint64_t last_time, current_time, start_time, delta_time;
+    delta_time = start_time = last_time = current_time = get_time();
+    int frames_this_second = 0;
+    int frames_per_second = 0;
 	init();
 
 	while(!terminate) {
+
+		frames_this_second++;
+        current_time = get_time();
+
+        
+        if(current_time > last_time + 1000000) {
+            frames_per_second = frames_this_second;
+            frames_this_second = 0;
+            last_time = current_time;
+        }
+
+
 		update_pin_states();
 		redraw();
-		stak_seps114a_update(&lcd_device);
+
+        delta_time = (get_time() - current_time);
+        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
+        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
 	}
 	shutdown();
 	return 0;
@@ -156,16 +197,50 @@ void init() {
 	stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
 
 	pthread_create(&thread_rotary_poll, NULL, update_encoder, NULL);
+	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
+	
 	printf("Please press shutter button.\n");
 }
+
 void shutdown() {
 	if(pthread_join(thread_rotary_poll, NULL)) {
+		fprintf(stderr, "Error joining thread\n");
+		return;
+	}
+	if(pthread_join(thread_seps114a_update, NULL)) {
 		fprintf(stderr, "Error joining thread\n");
 		return;
 	}
 	stak_canvas_destroy(&canvas);
 	stak_seps114a_close(&lcd_device);
 }
+
+void* update_display(void* arg) {
+
+    uint64_t last_time, current_time, start_time, delta_time;
+    delta_time = start_time = last_time = current_time = get_time();
+    int frames_this_second = 0;
+    int frames_per_second = 0;
+	
+	while(!terminate) {
+
+		frames_this_second++;
+        current_time = get_time();
+
+        
+        if(current_time > last_time + 1000000) {
+            frames_per_second = frames_this_second;
+            frames_this_second = 0;
+            last_time = current_time;
+        }
+		stak_seps114a_update(&lcd_device);
+        delta_time = (get_time() - current_time);
+        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
+        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+	}
+	return 0;
+}
+
 void redraw() {
 	// start with a clear screen
 	glClear( GL_COLOR_BUFFER_BIT );
@@ -175,7 +250,12 @@ void redraw() {
 	stak_canvas_swap(&canvas);
 	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
 }
+
 void* update_encoder(void* arg) {
+	uint64_t last_time, current_time, start_time, delta_time;
+    delta_time = start_time = last_time = current_time = get_time();
+    int frames_this_second = 0;
+    int frames_per_second = 0;
 	const int encoding_matrix[4][4] = {
 		{ 0,-1, 1, 0},
 		{ 1, 0, 0,-1},
@@ -192,12 +272,28 @@ void* update_encoder(void* arg) {
 		if(change != 0)
 			bcm2835_pwm_set_data(0, (1024/32)*encoder_value);
 		last_encoded_value = encoded;
+
+		frames_this_second++;
+        current_time = get_time();
+
+        
+        if(current_time > last_time + 1000000) {
+            frames_per_second = frames_this_second;
+            frames_this_second = 0;
+            last_time = current_time;
+            //printf("SEPS114A FPS: %i\n", frames_per_second);
+        }
+        delta_time = (get_time() - current_time);
+        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
+        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
 	}
+	return 0;
 }
 
 void run_test() {
 	tests[current_test]();
 }
+
 void next_test() {
 	if(current_test < ARRAY_COUNT(tests))
 		current_test++;
