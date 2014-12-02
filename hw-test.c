@@ -23,6 +23,7 @@
 #include <graphics/fbdev/fbdev.h>
 #include <graphics/canvas/canvas.h>
 #include <graphics/seps114a/seps114a.h>
+#include <io/bq27510/bq27510.h>
 
 // prototypes
 void init();
@@ -53,6 +54,7 @@ void finished_tests();
 static stak_canvas_s canvas;
 static framebuffer_device_s fb;
 static stak_seps114a_s lcd_device;
+static stak_bq27510_device_s gauge_device;
 static volatile sig_atomic_t terminate = 0;
 pthread_t thread_rotary_poll;
 
@@ -116,6 +118,7 @@ void init() {
 	ZERO_OBJECT( fb );
 	ZERO_OBJECT( canvas );
 	ZERO_OBJECT( lcd_device );
+    ZERO_OBJECT( gauge_device );
 	ZERO_OBJECT( action );
 
 	if(!bcm2835_init()) {
@@ -134,7 +137,7 @@ void init() {
 	bcm2835_pwm_set_clock(BCM2835_PWM_CLOCK_DIVIDER_16);
 	bcm2835_pwm_set_mode(0, 1, 1);
 	bcm2835_pwm_set_range(0, 1000);
-	bcm2835_pwm_set_data(0, 32);
+	bcm2835_pwm_set_data(0, 0);
 
 	setlogmask(LOG_UPTO(LOG_DEBUG));
 	openlog("fbcp", LOG_NDELAY | LOG_PID, LOG_USER);
@@ -143,6 +146,10 @@ void init() {
 	// setup sigterm handler
 	action.sa_handler = term;
 	sigaction(SIGINT, &action, NULL);
+
+	// setup bq27510 gas gauge
+    stak_bq27510_open("/dev/i2c-1", &gauge_device);
+    stak_bq27510_close(&gauge_device);
 
 	// init seps114a
 	stak_seps114a_init(&lcd_device);

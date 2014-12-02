@@ -19,12 +19,12 @@ unsigned int transBytes2Int(unsigned char msb, unsigned char lsb)
 	unsigned int tmp;
 
     tmp = ((msb << 8) & 0xFF00);
-    return ((unsigned int)(tmp + lsb) & 0x0000FFFF);
+    return ((unsigned int)(tmp + lsb) & 0xFFFF);
 }
 
 int bq_write(stak_bq27510_device_s* device, unsigned char reg, char data)
 {
-        int err = 0;
+    int err = 0;
 	char i2c_buf[2];
 
   	i2c_buf[0] = reg;
@@ -32,8 +32,8 @@ int bq_write(stak_bq27510_device_s* device, unsigned char reg, char data)
 	err = write(device->device_fd, i2c_buf, 2);
 
 	if (err != 2) {
-	      fprintf(stderr, "\nError: 0x%x - i2c transaction failure! a \n", err);
-	      return -1;
+	    fprintf(stderr, "\nError: 0x%x - i2c transaction failure! a \n", err);
+	    return -1;
 	}
 	
 	return 0;
@@ -41,17 +41,18 @@ int bq_write(stak_bq27510_device_s* device, unsigned char reg, char data)
 
 int bq_read(stak_bq27510_device_s* device, unsigned char reg, int bytes, char *i2c_buf)
 {
-        int err = 0;
+    int err = 0;
 
 	i2c_buf[0] = reg;
 	err = write(device->device_fd, i2c_buf, 1);
 	if (err != 1) {
-	        fprintf(stderr, "\nError: 0x%x - i2c transaction failure! b \n", err);
+	    fprintf(stderr, "\nError: 0x%x - i2c transaction failure! b \n", err);
 	}
+	usleep(7500);
 
 	err = read(device->device_fd, i2c_buf, bytes);
 	if (err != bytes) {
-	        fprintf(stderr, "\nError: 0x%x - i2c transaction failure! bb \n", err);
+	    fprintf(stderr, "\nError: 0x%x - i2c transaction failure! bb \n", err);
 		return -1;
 	}
 
@@ -78,7 +79,6 @@ i2c_read16(stak_bq27510_device_s* device, char reg) {
 	};
 	int rc;
 
-	//buf[0] = (reg & 0x00FF);
 	buf[0] = (reg & 0xFF00) >> 8;
 	buf[1] = (reg & 0x00FF);
 
@@ -90,26 +90,11 @@ i2c_read16(stak_bq27510_device_s* device, char reg) {
 		return -1;
 	}
 	i2c_smbus_read_word_data(device->device_fd, reg);
-	/*buf[0] = (reg);
-	buf[1] = (reg);
-	int err = write(device->device_fd, buf, 2);
-	if (err != 2) {
-		printf("No ACK bit! %i\n", err);
-		return -1;
-	}
-	usleep(66);
-	err = read(device->device_fd, rbuf, 2);
-	if (err != 2) {
-		printf("No ACK bit! %i\n", err);
-		return -1;
-	}
-	usleep(66);*/
 	return (rbuf[0] << 8) | rbuf[1];
 }
 
 int stak_bq27510_open(char* filename, stak_bq27510_device_s* device) {
 #ifdef STAK_USE_I2C_DEVICE
-	//unsigned long i2c_funcs = 0;
 	device->device_fd = open("/dev/i2c-1", O_RDWR);
 
 	if (device->device_fd < 0) {
@@ -119,38 +104,17 @@ int stak_bq27510_open(char* filename, stak_bq27510_device_s* device) {
 
 	unsigned char i2c_address = 0x55;
 	ioctl(device->device_fd, I2C_TENBIT, 0);
-	ioctl(device->device_fd, I2C_SLAVE, i2c_address);
+	if (ioctl(device->device_fd, I2C_SLAVE, i2c_address) < 0) {
+		printf("Unable to get bus access to talk to slave\n");
+		return -1;
+	}
+	char buf[10];
 
-	float voltage = (float)i2c_read16(device, 0x08) / 1000.0f;
-	int charge = i2c_read16(device, 0x20);
+	bq_read(device, 0x08, 2, buf);
+	printf("\tVoltage: %f\n", ((float)transBytes2Int(buf[1],buf[0]))/1000.0f);
 
-	printf("\tVoltage: %f\n\tCharge: %i%%\n", voltage, charge);
-
-	/*err = write(device->device_fd, &i2c_address, 1);
-	if (err != 1) printf("No ACK bit! %i\n", err);
-	usleep(66);
-	err = read(device->device_fd, &i2c_address, 1);
-	printf("Part ID: %d\n", (int)i2c_address);
-	usleep(66);
-
-	err = write(device->device_fd, init_sequence, 1);
-	if (err != 1) printf("No ACK bit! %i\n", err);
-	//err = write(device->device_fd, init_sequence + 2, 1);
-	//if (err != 1) printf("No ACK bit! %i\n", err);
-	usleep(66);
-	err = read(device->device_fd, return_data, 2);
-	printf("Charge: %d\n", (int)transBytes2Int(return_data[1],return_data[0]));*/
-	
-	/*err = bq_write(device, 0x00, 0x02);
-	err = bq_write(device, 0x01, 0x00);
-	err |= bq_read(device, 0x00, 2, i2c_buf);
-//
-	if (!err)
-	  version = (i2c_buf[0] + (i2c_buf[1] << 8));
-	else
-	  printf("Unable to get version.");
-//
-	printf("\nCurrent firmware version: %x \n", version);*/
+	bq_read(device, 0x20, 2, buf);
+	printf("\tCapacity: %i%%\n", ((int)transBytes2Int(buf[1], buf[0])));
 #else
 	bcm2835_i2c_begin();
 	bcm2835_i2c_setSlaveAddress(0x55);
