@@ -43,7 +43,8 @@ void shutter_test();
 void rotary_left_test();
 void rotary_right_test();
 void rotary_switch_test();
-void camera_test();
+void camera_test_a();
+void camera_test_b();
 void finished_tests();
 
 
@@ -88,7 +89,8 @@ test_fptr_t tests[] = {
 	rotary_left_test,
 	rotary_right_test,
 	rotary_switch_test,
-	camera_test,
+	camera_test_a,
+	camera_test_b,
 	finished_tests
 };
 
@@ -110,10 +112,37 @@ uint64_t get_time() {
 
 typedef struct framerate_lock {
     uint64_t last_time, current_time, start_time, delta_time;
-    delta_time = start_time = last_time = current_time = get_time();
-    int frames_this_second = 0;
-    int frames_per_second = 0;
+    int frames_this_second;
+    int frames_per_second;
 };
+
+
+const char* files[] = {
+	"/root/assets/shutter.png",
+	"/root/assets/rotleft.png",
+	"/root/assets/rotright.png",
+	"/root/assets/rotswitch.png",
+	"/root/assets/camera.png",
+	"/root/assets/oled.png",
+	//"assets/complete.png"
+};
+
+typedef struct image_s{
+	unsigned char* data;
+	int w;
+	int h;
+};
+static struct image_s images[ARRAY_COUNT(files)];
+
+
+inline uint16_t rgb24_to_16 (uint32_t rgb)
+{
+    int blue   = (rgb >>  3) & 0x001f;
+    int green  = (rgb >> 10) & 0x003f;
+    int red    = (rgb >> 19) & 0x001f;
+    return (red ) | (green << 5) | ( blue << 11);
+}
+
 // SIGINT signal handler
 void term(int signum)
 {
@@ -188,16 +217,38 @@ void init() {
 	action.sa_handler = term;
 	sigaction(SIGINT, &action, NULL);
 
-	// setup bq27510 gas gauge
-    stak_bq27510_open("/dev/i2c-1", &gauge_device);
-    stak_bq27510_close(&gauge_device);
 
 	// init seps114a
 	stak_seps114a_init(&lcd_device);
 	stak_canvas_create(&canvas, STAK_CANVAS_OFFSCREEN, 96, 96);
 
+	// setup bq27510 gas gauge
+    int gauge_error = stak_bq27510_open("/dev/i2c-1", &gauge_device);
+    stak_bq27510_close(&gauge_device);
+
+    if(gauge_error != 0) {
+    	int x, y;
+    	for(y = 0; y < 96; y++) {
+			for(x = 0; x < 96; x++) {
+				((uint16_t*)lcd_device.framebuffer)[y * 96 + x] = rgb24_to_16(0x00ff0000);
+			}
+		}
+		stak_seps114a_update(&lcd_device);
+		nanosleep((struct timespec[]){{5, 0}}, NULL);
+		terminate = 1;
+    }
+    else {
+    	int cur_image = 0;
+		for(cur_image = 0; cur_image < ARRAY_COUNT(files); cur_image++) {
+			int error = lodepng_decode32_file(&images[cur_image].data, &images[cur_image].w, &images[cur_image].h, files[cur_image]);
+			if(error != 0) {
+				printf("Failed to load file: %s\n", files[cur_image]);
+				terminate = 1;
+			}
+		}
+    }
 	pthread_create(&thread_rotary_poll, NULL, update_encoder, NULL);
-	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
+	//pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
 	
 	printf("Please press shutter button.\n");
 }
@@ -207,12 +258,16 @@ void shutdown() {
 		fprintf(stderr, "Error joining thread\n");
 		return;
 	}
-	if(pthread_join(thread_seps114a_update, NULL)) {
+	/*if(pthread_join(thread_seps114a_update, NULL)) {
 		fprintf(stderr, "Error joining thread\n");
 		return;
-	}
+	}*/
 	stak_canvas_destroy(&canvas);
 	stak_seps114a_close(&lcd_device);
+	int cur_image = 0;
+	for(cur_image = 0; cur_image < ARRAY_COUNT(files); cur_image++) {
+		free(images[cur_image].data);
+	}
 }
 
 void* update_display(void* arg) {
@@ -224,7 +279,7 @@ void* update_display(void* arg) {
 	
 	while(!terminate) {
 
-		frames_this_second++;
+		/*frames_this_second++;
         current_time = get_time();
 
         
@@ -235,20 +290,30 @@ void* update_display(void* arg) {
         }
 		stak_seps114a_update(&lcd_device);
         delta_time = (get_time() - current_time);
-        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
-        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
+        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);*/
+        nanosleep((struct timespec[]){{0, 333000000L}}, NULL);
 	}
 	return 0;
 }
 
+void draw_image(int image) {
+	int x, y;
+	for(y = 0; y < 96; y++) {
+		for(x = 0; x < 96; x++) {
+			((uint16_t*)lcd_device.framebuffer)[y * 96 + x] = rgb24_to_16(( (uint32_t*) images[image].data)[y * images[image].w + x]);
+		}
+	}
+}
 void redraw() {
 	// start with a clear screen
 	glClear( GL_COLOR_BUFFER_BIT );
 
 	//render(canvas.screen_width,canvas.screen_height);
 	run_test();
-	stak_canvas_swap(&canvas);
-	stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
+	//stak_canvas_swap(&canvas);
+	//stak_canvas_copy(&canvas, (char*)lcd_device.framebuffer, 96 * 2);
+	stak_seps114a_update(&lcd_device);
 }
 
 void* update_encoder(void* arg) {
@@ -269,8 +334,8 @@ void* update_encoder(void* arg) {
 
 		int change = encoding_matrix[last_encoded_value][encoded];
 		encoder_value += change;
-		if(change != 0)
-			bcm2835_pwm_set_data(0, (1024/32)*encoder_value);
+		//if(change != 0)
+		//	bcm2835_pwm_set_data(0, (1024/32)*encoder_value);
 		last_encoded_value = encoded;
 
 		frames_this_second++;
@@ -295,6 +360,9 @@ void run_test() {
 }
 
 void next_test() {
+	bcm2835_pwm_set_data(0, (1024/32)*12);
+	nanosleep((struct timespec[]){{0, 500000000L}}, NULL);
+	bcm2835_pwm_set_data(0, 0);
 	if(current_test < ARRAY_COUNT(tests))
 		current_test++;
 }
@@ -321,35 +389,41 @@ int get_rotary_position() {
 }
 
 void shutter_test() {
+	draw_image(0);
 	if(get_shutter_pressed()) {
 		next_test();
-		printf("Please rotate rotary to the left.\n");
 		testing_position = encoder_value;
 	}
 }
 void rotary_left_test() {
+	draw_image(1);
 	if(encoder_value < testing_position - 15) {
 		next_test();
-		printf("Please rotate rotary to the right.\n");
 		testing_position = encoder_value;
 	}
 }
 void rotary_right_test() {
+	draw_image(2);
 	if(encoder_value > testing_position + 15) {
 		next_test();
-		printf("Please press Rotary switch.\n");
 	}
 }
 void rotary_switch_test() {
+	draw_image(3);
 	if(get_rotary_pressed()) {
 		next_test();
-		printf("Please press shutter when camera input verified on OLED.\n");
 	}
 }
-void camera_test() {
+void camera_test_a() {
+	draw_image(4);
+	stak_seps114a_update(&lcd_device);
+	nanosleep((struct timespec[]){{3, 0}}, NULL);
+	next_test();
+}
+void camera_test_b() {
+	draw_image(5);
 	if(get_shutter_pressed()) {
 		next_test();
-		printf("Tests succeeded!\n");
 	}
 }
 void finished_tests() {

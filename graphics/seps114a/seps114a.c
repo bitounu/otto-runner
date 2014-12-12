@@ -66,7 +66,7 @@ const int STAK_SEPS114A_SPI_MODE = SPI_MODE_0 | SPI_NO_CS;
 const int STAK_SEPS114A_SPI_BPW = 8;
 const int STAK_SEPS114A_SPI_SPEED = 4000000;
 
-#define STAK_SEPS114A_USE_SPIDEV
+//#define STAK_SEPS114A_USE_SPIDEV
 
 int stak_seps114a_init(stak_seps114a_s* device) {
     if(!bcm2835_init()) {
