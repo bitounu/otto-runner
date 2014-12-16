@@ -1,5 +1,5 @@
 OBJS=\
-	hw-test.o \
+	main.o \
 	graphics/seps114a/seps114a.o \
 	graphics/canvas/canvas.o \
 	io/bq27510/bq27510.o \
