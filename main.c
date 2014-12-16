@@ -16,6 +16,7 @@
 #include <VG/vgu.h>
 #define NANOVG_GLES2_IMPLEMENTATION
 #include <nanovg.h>
+#include <nanovg_gl.h>
 #include <graphics/fbdev/fbdev.h>
 #include <graphics/canvas/canvas.h>
 #include <graphics/seps114a/seps114a.h>
@@ -97,7 +98,7 @@ int redraw()
     glEnable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
-    nvgBeginFrame(vg, winWidth, winHeight, pxRatio);
+    nvgBeginFrame(vg, canvas.screen_width, canvas.screen_height, 1.0f);
 
     render(canvas.screen_width,canvas.screen_height);
 
