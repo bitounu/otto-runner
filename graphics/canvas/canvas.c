@@ -75,20 +75,36 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
 
     // get an EGL display connection
     canvas->egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if(canvas->egl_display == EGL_NO_DISPLAY)
+        return -1;
 
     //eglBindAPI(EGL_OPENGL_ES_API);
 
     // initialize the EGL display connection
-    eglInitialize(canvas->egl_display, NULL, NULL);
+    if(eglInitialize(canvas->egl_display, NULL, NULL) == EGL_FALSE) {
+        printf("Error initializing egl display\n");
+        return -1;
+    }
 
     // get an appropriate EGL frame buffer configuration
-    eglChooseConfig(canvas->egl_display, attribute_list, &config, 1, &num_config);
+    if(eglChooseConfig(canvas->egl_display, attribute_list, &config, 1, &num_config) == EGL_FALSE){
+        printf("Error setting config\n");
+        return -1;
+    }
 
     // create an EGL rendering context
     canvas->context = eglCreateContext(canvas->egl_display, config, EGL_NO_CONTEXT, NULL);
+    if(canvas->context == EGL_NO_CONTEXT) {
+        printf("Error creating context\n");
+        return -1;
+    }
 
     // create an EGL surface
     canvas->surface = eglCreateWindowSurface( canvas->egl_display, config, &canvas->nativewindow, NULL );
+    if(canvas->surface == EGL_NO_SURFACE) {
+        printf("Error creating surface\n");
+        return -1;
+    }
 
     // connect the context to the surface
     eglMakeCurrent(canvas->egl_display, canvas->surface, canvas->surface, canvas->context);
