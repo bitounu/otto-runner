@@ -76,7 +76,7 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     // get an EGL display connection
     canvas->egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
-    eglBindAPI(EGL_OPENVG_API);
+    eglBindAPI(EGL_OPENGL_ES_API);
 
     // initialize the EGL display connection
     eglInitialize(canvas->egl_display, NULL, NULL);
