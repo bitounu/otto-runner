@@ -132,7 +132,7 @@ void init() {
     vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
     if (vg == NULL) {
         printf("Could not init nanovg.\n");
-        //terminate = 1;
+        terminate = 1;
         return;
     }
     glClearColor(1,1,1,1);
