@@ -129,12 +129,12 @@ void init() {
 	}
 
 
-    /*vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
+    vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
     if (vg == NULL) {
         printf("Could not init nanovg.\n");
         //terminate = 1;
         return;
-    }*/
+    }
     glClearColor(1,1,1,1);
 
 	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
@@ -145,7 +145,7 @@ void shutdown() {
 		fprintf(stderr, "Error joining thread\n");
 		return;
 	}
-    //nvgDeleteGLES2(vg);
+    nvgDeleteGLES2(vg);
 	stak_canvas_destroy(&canvas);
 	stak_seps114a_close(&lcd_device);
 }
