@@ -9,7 +9,7 @@
 #define OPENGL_HEIGHT 96
 static VC_RECT_T screen_rect;
 int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
-//#define RENDER_WINDOW_ONSCREEN
+#define RENDER_WINDOW_ONSCREEN
     bcm_host_init();
     canvas->opengl_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, OPENGL_WIDTH, OPENGL_HEIGHT, &canvas->opengl_ptr);
     if (!canvas->opengl_resource)
