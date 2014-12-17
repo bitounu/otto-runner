@@ -167,7 +167,7 @@ int stak_seps114a_init(stak_seps114a_s* device) {
 
     device->framebuffer = NULL;
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
-    //memset(device->framebuffer, 0xff,96*96*2);
+    memset(device->framebuffer, 0x33,96*96*2);
     return 0;
 }
 inline uint16_t swap_rgb (uint16_t rgb)

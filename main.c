@@ -109,6 +109,7 @@ void init() {
 
 	if(!bcm2835_init()) {
 		printf("Failed to init BCM2835 library.\n");
+        terminate = 1;
 		return;
 	}
 
@@ -129,7 +130,8 @@ void init() {
     vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
     if (vg == NULL) {
         printf("Could not init nanovg.\n");
-        return -1;
+        terminate = 1;
+        return;
     }
     glClearColor(1,1,1,1);
 
@@ -166,7 +168,7 @@ void* update_display(void* arg) {
         }
 		stak_seps114a_update(&lcd_device);
         delta_time = (get_time() - current_time);
-        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
+        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
 	}
 	return 0;
