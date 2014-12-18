@@ -147,7 +147,7 @@ void init() {
     }*/
     glClearColor(1,1,1,1);
 
-    init_shapes_state();
+    //init_shapes_state();
 
 	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
 }
@@ -190,12 +190,12 @@ void* update_display(void* arg) {
 
 void render(int w, int h)
 {
-    float clearColor[4] = {1,1,1,1};
+    /*float clearColor[4] = {1,1,1,1};
     VGfloat dotcolor[4] = {0, 0, 0, 0.3};
     Start(96,96);
     RGBA(.5, 0, 0, 0.3, dotcolor);
     setfill(dotcolor);
-    Circle(32, 32, 10);
+    Circle(32, 32, 10);*/
     //	nvgResetTransform(vg);
     //	nvgFillColor(vg, nvgRGBA(28,30,34,192));
     //	nvgStrokeColor(vg, nvgRGBA(0,0,0,32));
