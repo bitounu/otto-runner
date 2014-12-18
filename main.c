@@ -98,7 +98,23 @@ int main(int argc, char** argv) {
 	shutdown();
 	return 0;
 }
+extern STATE_T *state;
+void init_shapes_state() {
+    memset(state, 0, sizeof(*state));
+    state->screen_width = canvas->screen_width;
+    state->screen_height = canvas->screen_height;
+    state->display = canvas->egl_display;
+    state->surface = canvas->surface;
+    state->context = canvas->context;
+    // set up screen ratio
+    glViewport(0, 0, (GLsizei) state->screen_width, (GLsizei) state->screen_height);
 
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    float ratio = (float)state->screen_width / (float)state->screen_height;
+    glFrustumf(-ratio, ratio, -1.0f, 1.0f, 1.0f, 10.0f);
+}
 void init() {
 	struct sigaction action;
 
@@ -137,6 +153,8 @@ void init() {
         return;
     }*/
     glClearColor(1,1,1,1);
+
+    init_shapes_state();
 
 	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
 }
@@ -181,6 +199,7 @@ void render(int w, int h)
 {
     float clearColor[4] = {1,1,1,1};
     VGfloat dotcolor[4] = {0, 0, 0, 0.3};
+    Start(96,96);
     RGBA(.5, 0, 0, 0.3, dotcolor);
     setfill(dotcolor);
     Circle(32, 32, 10);
@@ -192,7 +211,7 @@ void render(int w, int h)
 
 void redraw() {
 	// start with a clear screen
-	glClear( GL_COLOR_BUFFER_BIT );
+	//glClear( GL_COLOR_BUFFER_BIT );
 
 	render(canvas.screen_width,canvas.screen_height);
 	stak_canvas_swap(&canvas);
