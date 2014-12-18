@@ -25,6 +25,7 @@
 #include <graphics/seps114a/seps114a.h>
 #include <io/bq27510/bq27510.h>
 #include <lib/shapes.h>
+#include <lib/eglstate.h>
 
 // prototypes
 void init();
@@ -101,11 +102,11 @@ int main(int argc, char** argv) {
 extern STATE_T *state;
 void init_shapes_state() {
     memset(state, 0, sizeof(*state));
-    state->screen_width = canvas->screen_width;
-    state->screen_height = canvas->screen_height;
-    state->display = canvas->egl_display;
-    state->surface = canvas->surface;
-    state->context = canvas->context;
+    state->screen_width = canvas.screen_width;
+    state->screen_height = canvas.screen_height;
+    state->display = canvas.egl_display;
+    state->surface = canvas.surface;
+    state->context = canvas.context;
     // set up screen ratio
     glViewport(0, 0, (GLsizei) state->screen_width, (GLsizei) state->screen_height);
 
