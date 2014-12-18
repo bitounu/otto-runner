@@ -5,6 +5,7 @@ OBJS=\
 	io/bq27510/bq27510.o \
 	lib/lodepng.o \
 	graphics/tinypng/TinyPngOut.o \
+	lib/libshapes.o \
 	tiger.o
 SRCS=$(patsubst %.o,%.c,$(OBJS))
 BIN=stak-test
@@ -24,6 +25,7 @@ LDFLAGS+=-L$(STAGING_DIR)/usr/lib/ \
 		 -lnanovg \
 		 -lpthread \
 		 -lc \
+		 -ljpeg \
 		 -lrt \
 		 -lm \
 		 -lbcm2835 \
@@ -45,14 +47,14 @@ header:
 	@echo $(HEADER)
 %.o: %.c
 	@echo $(BUILDING)
-	$(CC) $(CFLAGS) $(INCLUDES) -s -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
+	@$(CC) $(CFLAGS) $(INCLUDES) -s -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
 
 %.o: %.cpp
 	@echo $(BUILDING)
-	$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
+	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
 
 $(BIN): header $(OBJS)
-	$(CC) -o $@ -Wl,--whole-archive $(OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
+	@$(CC) -o $@ -Wl,--whole-archive $(OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
 
 %.a: $(OBJS)
 	@$(AR) r $@ $^

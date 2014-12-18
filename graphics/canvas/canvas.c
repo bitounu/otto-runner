@@ -78,7 +78,7 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     if(canvas->egl_display == EGL_NO_DISPLAY)
         return -1;
 
-    //eglBindAPI(EGL_OPENGL_ES_API);
+    eglBindAPI(EGL_OPENGL_ES_API);
 
     // initialize the EGL display connection
     if(eglInitialize(canvas->egl_display, NULL, NULL) == EGL_FALSE) {

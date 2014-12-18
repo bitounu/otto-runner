@@ -17,13 +17,14 @@
 #include <EGL/eglext.h>
 #include <VG/openvg.h>
 #include <VG/vgu.h>
-#define NANOVG_GLES2_IMPLEMENTATION
-#include <nanovg.h>
-#include <nanovg_gl.h>
+//#define NANOVG_GLES2_IMPLEMENTATION
+//#include <nanovg.h>
+//#include <nanovg_gl.h>
 #include <graphics/fbdev/fbdev.h>
 #include <graphics/canvas/canvas.h>
 #include <graphics/seps114a/seps114a.h>
 #include <io/bq27510/bq27510.h>
+#include <lib/shapes.h>
 
 // prototypes
 void init();
@@ -42,7 +43,7 @@ static framebuffer_device_s fb;
 static stak_seps114a_s lcd_device;
 static volatile sig_atomic_t terminate = 0;
 pthread_t thread_seps114a_update;
-static NVGcontext* vg = NULL;
+//static NVGcontext* vg = NULL;
 
 
 #define max(a,b) \
@@ -129,12 +130,12 @@ void init() {
 	}
 
 
-    vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
+    /*vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
     if (vg == NULL) {
         printf("Could not init nanovg.\n");
         terminate = 1;
         return;
-    }
+    }*/
     glClearColor(1,1,1,1);
 
 	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
@@ -145,7 +146,7 @@ void shutdown() {
 		fprintf(stderr, "Error joining thread\n");
 		return;
 	}
-    nvgDeleteGLES2(vg);
+    //nvgDeleteGLES2(vg);
 	stak_canvas_destroy(&canvas);
 	stak_seps114a_close(&lcd_device);
 }
@@ -179,6 +180,10 @@ void* update_display(void* arg) {
 void render(int w, int h)
 {
     float clearColor[4] = {1,1,1,1};
+    VGfloat dotcolor[4] = {0, 0, 0, 0.3};
+    RGBA(.5, 0, 0, 0.3, dotcolor);
+    setfill(dotcolor);
+    Circle(32, 32, 10);
     //	nvgResetTransform(vg);
     //	nvgFillColor(vg, nvgRGBA(28,30,34,192));
     //	nvgStrokeColor(vg, nvgRGBA(0,0,0,32));
