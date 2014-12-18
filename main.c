@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 	shutdown();
 	return 0;
 }
-extern static STATE_T *state;
+extern STATE_T *state;
 void init_shapes_state() {
     memset(state, 0, sizeof(*state));
     state->screen_width = canvas.screen_width;
