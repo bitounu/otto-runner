@@ -4,6 +4,7 @@
 #include <EGL/eglext.h>
 #include <syslog.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define OPENGL_WIDTH 96
 #define OPENGL_HEIGHT 96

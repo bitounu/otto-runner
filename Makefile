@@ -1,5 +1,8 @@
 OBJS=\
 	main.o \
+	src/application/application.o \
+	src/application/state/state.o \
+	src/core/core.o \
 	graphics/seps114a/seps114a.o \
 	graphics/canvas/canvas.o \
 	io/bq27510/bq27510.o \
@@ -32,7 +35,14 @@ LDFLAGS+=-L$(STAGING_DIR)/usr/lib/ \
 		 -L../libs/ilclient \
 		 -L../libs/vgfont \
 		 -L/usr/local/lib
-INCLUDES+=-I$(STAGING_DIR)/usr/include -I$(STAGING_DIR)/opt/vc/include/ -I$(STAGING_DIR)/opt/vc/include/interface/vcos/pthreads -I$(STAGING_DIR)/opt/vc/include/interface/vmcs_host/linux -I./ -I../libs/ilclient -I../libs/vgfont
+INCLUDES+=-I$(STAGING_DIR)/usr/include \
+		  -I$(STAGING_DIR)/opt/vc/include/ \
+		  -I$(STAGING_DIR)/opt/vc/include/interface/vcos/pthreads \
+		  -I$(STAGING_DIR)/opt/vc/include/interface/vmcs_host/linux \
+		  -I./ \
+		  -I./src/ \
+		  -I../libs/ilclient \
+		  -I../libs/vgfont
 
 
 HEADER="\33[35m----------[\33[36;1m Stak: \33[0;33m$(BIN) \33[35m]----------\33[39m"

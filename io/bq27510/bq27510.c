@@ -113,6 +113,7 @@ void* stak_bq27510_update_thread(void* arg) {
 		bq_read(device, 0x08, 2, buf);
 		voltage = ((float)transBytes2Int(buf[1],buf[0]))/1000.0f;
 	}*/
+	return 0;
 }
 int stak_bq27510_close(stak_bq27510_device_s* device) {
 #ifdef STAK_USE_I2C_DEVICE
