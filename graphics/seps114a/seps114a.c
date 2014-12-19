@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
 #include <assert.h>
+#include <errno.h>
 //#include <linux/spi/spi.h>
 #define GPIO_ON(pin) bcm2835_gpio_set(pin)
 #define GPIO_OFF(pin) bcm2835_gpio_clr(pin)
@@ -63,7 +64,7 @@
 const int STAK_SEPS114A_PIN_RST = 24;
 const int STAK_SEPS114A_PIN_DC = 25;
 const int STAK_SEPS114A_PIN_CS = 7;
-const int STAK_SEPS114A_SPI_MODE = SPI_MODE_0 | SPI_NO_CS;
+const int STAK_SEPS114A_SPI_MODE = SPI_MODE_0;
 const int STAK_SEPS114A_SPI_BPW = 8;
 const int STAK_SEPS114A_SPI_SPEED = 4000000;
 
@@ -72,6 +73,7 @@ const int STAK_SEPS114A_SPI_SPEED = 4000000;
 stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_s* device = calloc(1, sizeof(stak_seps114a_s));
     if(!bcm2835_init()) {
+        printf("Failing on bcm2835_init\n");
         return 0;
     }
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_RST, BCM2835_GPIO_FSEL_OUTP);
@@ -92,17 +94,36 @@ stak_seps114a_s* stak_seps114a_create() {
         printf("Failed to open spi device\n");
         return 0;
     }
-    assert(ioctl (device->spi_fd, SPI_IOC_WR_MODE, &STAK_SEPS114A_SPI_MODE) != -1);
-    //assert(ioctl (device->spi_fd, SPI_IOC_RD_MODE, &STAK_SEPS114A_SPI_MODE) != -1);
-    assert(ioctl (device->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) != -1);
-    //assert(ioctl (device->spi_fd, SPI_IOC_RD_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) != -1);
-    assert(ioctl (device->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) != -1);
-    //assert(ioctl (device->spi_fd, SPI_IOC_RD_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) != -1);
+    if( ioctl (device->spi_fd, SPI_IOC_WR_MODE, &STAK_SEPS114A_SPI_MODE) == -1) {
+        printf("Failed to set write mode on spidev. %s\n", strerror(errno));
+        return 0;
+    }
+    //  if( ioctl (device->spi_fd, SPI_IOC_RD_MODE, &STAK_SEPS114A_SPI_MODE) == -1) {
+    //      printf("Failed to set read mode on spidev. %s\n", strerror(errno));
+    //      return 0;
+    //  }
+    if( ioctl (device->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) == -1) {
+        printf("Failed to set write bpw on spidev. %s\n", strerror(errno));
+        return 0;
+    }
+    //  if( ioctl (device->spi_fd, SPI_IOC_RD_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) == -1) {
+    //      printf("Failed to set read bpw on spidev. %s\n", strerror(errno));
+    //      return 0;
+    //  }
+    if( ioctl (device->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) == -1) {
+        printf("Failed to set write speed on spidev. %s\n", strerror(errno));
+        return 0;
+    }
+    //  if( ioctl (device->spi_fd, SPI_IOC_RD_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) == -1) {
+    //      printf("Failed to set read speed on spidev. %s\n", strerror(errno));
+    //      return 0;
+    //  }
+    printf("SPI initialized\n");
 #else
     bcm2835_spi_begin();
     bcm2835_spi_setBitOrder(BCM2835_SPI_BIT_ORDER_LSBFIRST);
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE0);                   // The default
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64);    // ~ 4 MHz
+    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_8);    // ~ 4 MHz
     bcm2835_spi_chipSelect(BCM2835_SPI_CS0);                      // The default
     bcm2835_spi_setChipSelectPolarity(BCM2835_SPI_CS0, LOW);      // the default
 #endif
@@ -167,9 +188,12 @@ stak_seps114a_s* stak_seps114a_create() {
     // Display ON
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
+    printf("Display enabled\n");
 
     device->framebuffer = NULL;
+    printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
+    printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     //memset(device->framebuffer, 0x33,96*96*2);
     return device;
 }
@@ -179,24 +203,43 @@ inline uint16_t swap_rgb (uint16_t rgb)
              ((rgb >> 8) & 0xff));
 }
 inline void stak_seps114a_spidev_write(stak_seps114a_s* device, char* data, int length) {
-    /*struct spi_ioc_transfer message = {
-        .tx_buf = (unsigned long) data,
-        .rx_buf = (unsigned long) data,
-        .len = length,
-        .delay_usecs = 0,
-        .speed_hz = STAK_SEPS114A_SPI_SPEED,
-        .bits_per_word = STAK_SEPS114A_SPI_BPW,
-        .cs_change = 0,
-    };*/
-    struct spi_ioc_transfer message;
-    memset(&message, 0, sizeof(message));
-    message.tx_buf = ((uint64_t) (uint32_t)data);
-    message.len = length;
-    message.delay_usecs = 0;
-    message.speed_hz = STAK_SEPS114A_SPI_SPEED;
-    message.bits_per_word = STAK_SEPS114A_SPI_BPW;
-    message.cs_change = 0;
-    assert( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message)) != -1 );
+    int split = 0;
+    int offset = 0;
+    if(length > 2048) {
+        int remainder = (length % 2048);
+        int chunks = (length - remainder) / 2048 + 1;
+        struct spi_ioc_transfer* message = calloc(chunks, sizeof(struct spi_ioc_transfer) );
+        for(;split < chunks; split++) {
+            offset = (split * 2048);
+            int size = (length - (split * 2048)) % 2048;
+            if(size == 0) size = 2048;
+            message[split].tx_buf = ((uint64_t) data + offset);
+            message[split].rx_buf = ((uint64_t) data + offset);
+            message[split].len = size;
+            message[split].delay_usecs = 10;
+            message[split].speed_hz = STAK_SEPS114A_SPI_SPEED;
+            message[split].bits_per_word = STAK_SEPS114A_SPI_BPW;
+            message[split].cs_change = 0;
+            if( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message[split])) == -1 ) {
+                printf("Failed to write message to spidev. %s\n", strerror(errno));
+                printf("\tAddress: 0x%8x\n", data + offset);
+            }
+        }
+    }
+    else {
+        struct spi_ioc_transfer message;
+        message.tx_buf = ((uint64_t) data );
+        message.rx_buf = ((uint64_t) data );
+        message.len = length;
+        message.delay_usecs = 10;
+        message.speed_hz = STAK_SEPS114A_SPI_SPEED;
+        message.bits_per_word = STAK_SEPS114A_SPI_BPW;
+        message.cs_change = 0;
+        if( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message)) == -1 ) {
+            printf("Failed to write message to spidev. %s\n", strerror(errno));
+            printf("\tAddress: 0x%8x\n", data + offset);
+        }
+    }
 }
 int stak_seps114a_destroy(stak_seps114a_s* device) {
 

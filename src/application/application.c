@@ -28,7 +28,7 @@
 
 static volatile sig_atomic_t terminate;
 
-#define STAK_USE_THREADING
+//#define STAK_USE_THREADING
 
 // SIGINT signal handler
 void stak_application_terminate_cb(int signum)
@@ -49,7 +49,7 @@ void* stak_application_hal_thread(void* arg) {
         stak_seps114a_update(application->display);
 
         delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
+        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
     }
     return 0;
@@ -129,19 +129,20 @@ int stak_application_run(struct stak_application_s* application) {
 
     uint64_t last_time, current_time, start_time, delta_time;
     delta_time = start_time = last_time = current_time = stak_core_get_time();
-    /*int frames_this_second = 0;
-    int frames_per_second = 0;*/
+    int frames_this_second = 0;
+    int frames_per_second = 0;
 	while(!terminate) {
 		//stak_state_machine_top(application->state_machine, current_state);
-		//frames_this_second++;
+		frames_this_second++;
         current_time = stak_core_get_time();
 
         
-        /*if(current_time > last_time + 1000000) {
+        if(current_time > last_time + 1000000) {
             frames_per_second = frames_this_second;
             frames_this_second = 0;
             last_time = current_time;
-        }*/
+            printf("FPS: %i\n", frames_per_second);
+        }
 
 
         stak_state_machine_run(application->state_machine);
@@ -152,7 +153,7 @@ int stak_application_run(struct stak_application_s* application) {
         #endif
 
         delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
+        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
 	}
     return 0;
