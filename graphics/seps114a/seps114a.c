@@ -69,9 +69,10 @@ const int STAK_SEPS114A_SPI_SPEED = 4000000;
 
 //#define STAK_SEPS114A_USE_SPIDEV
 
-int stak_seps114a_init(stak_seps114a_s* device) {
+stak_seps114a_s* stak_seps114a_create() {
+    stak_seps114a_s* device = calloc(1, sizeof(stak_seps114a_s));
     if(!bcm2835_init()) {
-        return -1;
+        return 0;
     }
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_RST, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_DC, BCM2835_GPIO_FSEL_OUTP);
@@ -89,7 +90,7 @@ int stak_seps114a_init(stak_seps114a_s* device) {
     if(device->spi_fd < 0) {
         // error out
         printf("Failed to open spi device\n");
-        return -1;
+        return 0;
     }
     assert(ioctl (device->spi_fd, SPI_IOC_WR_MODE, &STAK_SEPS114A_SPI_MODE) != -1);
     //assert(ioctl (device->spi_fd, SPI_IOC_RD_MODE, &STAK_SEPS114A_SPI_MODE) != -1);
@@ -169,8 +170,8 @@ int stak_seps114a_init(stak_seps114a_s* device) {
 
     device->framebuffer = NULL;
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
-    memset(device->framebuffer, 0x33,96*96*2);
-    return 0;
+    //memset(device->framebuffer, 0x33,96*96*2);
+    return device;
 }
 inline uint16_t swap_rgb (uint16_t rgb)
 {
@@ -197,7 +198,7 @@ inline void stak_seps114a_spidev_write(stak_seps114a_s* device, char* data, int 
     message.cs_change = 0;
     assert( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message)) != -1 );
 }
-int stak_seps114a_close(stak_seps114a_s* device) {
+int stak_seps114a_destroy(stak_seps114a_s* device) {
 
     memset(device->framebuffer, 0x00,96*96*2);
     stak_seps114a_update(device);

@@ -29,7 +29,8 @@ int stak_state_machine_run(struct stak_state_machine_s* state_machine) {
 	}
 
 }
-int stak_state_machine_push(struct stak_state_machine_s* state_machine, struct stak_state_s* state) {
+int stak_state_machine_push(struct stak_state_machine_s* state_machine,
+							struct stak_state_s* state) {
 	if (( state_machine ) && ( state_machine->size ) && ( state_machine->position < state_machine->size )) {
 		memcpy( &state_machine->states[state_machine->position], state, sizeof( struct stak_state_s) );
 		state_machine->states[state_machine->position].init();
@@ -38,7 +39,8 @@ int stak_state_machine_push(struct stak_state_machine_s* state_machine, struct s
 	}
 	else return -1;
 }
-int stak_state_machine_pop(struct stak_state_machine_s* state_machine, struct stak_state_s* state) {
+int stak_state_machine_pop(	struct stak_state_machine_s* state_machine,
+							struct stak_state_s* state) {
 	if (( state_machine ) && ( state_machine->size ) && ( state_machine->position > 0 )) {
 		memcpy( state, &state_machine->states[state_machine->position-1], sizeof( struct stak_state_s) );
 		state_machine->states[state_machine->position-1].shutdown();
@@ -47,7 +49,8 @@ int stak_state_machine_pop(struct stak_state_machine_s* state_machine, struct st
 	}
 	else return -1;
 }
-int stak_state_machine_top(struct stak_state_machine_s* state_machine, struct stak_state_s* state) {
+int stak_state_machine_top(	struct stak_state_machine_s* state_machine,
+							struct stak_state_s* state) {
 	if (( state_machine ) && ( state_machine->size ) && ( state_machine->position )) {
 		memcpy( state, &state_machine->states[state_machine->position-1], sizeof( struct stak_state_s) );
 		return 0;

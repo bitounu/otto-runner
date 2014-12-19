@@ -9,14 +9,16 @@
 #define OPENGL_WIDTH 96
 #define OPENGL_HEIGHT 96
 static VC_RECT_T screen_rect;
-int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
+stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
 //#define RENDER_WINDOW_ONSCREEN
+
+    stak_canvas_s* canvas = calloc(1, sizeof(stak_canvas_s));
     bcm_host_init();
     canvas->opengl_resource = vc_dispmanx_resource_create(VC_IMAGE_RGB565, OPENGL_WIDTH, OPENGL_HEIGHT, &canvas->opengl_ptr);
     if (!canvas->opengl_resource)
     {
         syslog(LOG_ERR, "Unable to create OpenGL screen buffer");
-        return -1;
+        return 0;
     }
 #ifndef RENDER_WINDOW_ONSCREEN
     // open offscreen display and 512x512 resource
@@ -30,7 +32,7 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     if (!canvas->scaled_resource)
     {
         syslog(LOG_ERR, "Unable to create LCD output buffer");
-        return -1;
+        return 0;
     }
 
     canvas->update = vc_dispmanx_update_start( 0 );
@@ -77,39 +79,44 @@ int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t 
     // get an EGL display connection
     canvas->egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if(canvas->egl_display == EGL_NO_DISPLAY)
-        return -1;
+        return 0;
 
     eglBindAPI(EGL_OPENVG_API);
 
     // initialize the EGL display connection
     if(eglInitialize(canvas->egl_display, NULL, NULL) == EGL_FALSE) {
         printf("Error initializing egl display\n");
-        return -1;
+        return 0;
     }
 
     // get an appropriate EGL frame buffer configuration
     if(eglChooseConfig(canvas->egl_display, attribute_list, &config, 1, &num_config) == EGL_FALSE){
         printf("Error setting config\n");
-        return -1;
+        return 0;
     }
 
     // create an EGL rendering context
     canvas->context = eglCreateContext(canvas->egl_display, config, EGL_NO_CONTEXT, NULL);
     if(canvas->context == EGL_NO_CONTEXT) {
         printf("Error creating context\n");
-        return -1;
+        return 0;
     }
 
     // create an EGL surface
     canvas->surface = eglCreateWindowSurface( canvas->egl_display, config, &canvas->nativewindow, NULL );
     if(canvas->surface == EGL_NO_SURFACE) {
         printf("Error creating surface\n");
-        return -1;
+        return 0;
+    }
+
+    if(eglSurfaceAttrib(canvas->egl_display, canvas->surface, EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED) == EGL_FALSE) {
+        printf("Error preserving buffer\n");
+        return 0;
     }
 
     // connect the context to the surface
     eglMakeCurrent(canvas->egl_display, canvas->surface, canvas->surface, canvas->context);
-    return 0;
+    return canvas;
 }
 
 int stak_canvas_destroy(stak_canvas_s* canvas) {

@@ -27,7 +27,7 @@ typedef enum {
 	STAK_CANVAS_OFFSCREEN = 0x01,
 	STAK_CANVAS_ONSCREEN = 0x02
 }stak_canvas_flags;
-int stak_canvas_create(stak_canvas_s* canvas, stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h);
+stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h);
 int stak_canvas_destroy(stak_canvas_s* canvas);
 int stak_canvas_copy(stak_canvas_s* canvas, char* dst, uint32_t pitch);
 int stak_canvas_swap(stak_canvas_s* canvas);
