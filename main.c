@@ -172,11 +172,11 @@ void init_shapes_state() {
                 DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
 
     SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
-                 DejaVuSerif_glyphPointIndices,
-                 DejaVuSerif_glyphInstructions,
-                 DejaVuSerif_glyphInstructionIndices,
-                 DejaVuSerif_glyphInstructionCounts,
-                 DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
+                DejaVuSerif_glyphPointIndices,
+                DejaVuSerif_glyphInstructions,
+                DejaVuSerif_glyphInstructionIndices,
+                DejaVuSerif_glyphInstructionCounts,
+                DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
 
     MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
                 DejaVuSansMono_glyphPointIndices,

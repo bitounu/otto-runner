@@ -10,8 +10,12 @@ struct stak_state_machine_s* stak_state_machine_create( int stack_size ) {
 	return state_machine;
 }
 int stak_state_machine_destroy(struct stak_state_machine_s* state_machine) {
-	free( state_machine->states );
-	free( state_machine );
+	if ( state_machine ) {
+		struct stak_state_s state;
+		while (stak_state_machine_pop(state_machine, &state) != -1);
+		free( state_machine->states );
+		free( state_machine );
+	}
     return 0;
 }
 int stak_state_machine_run(struct stak_state_machine_s* state_machine) {
@@ -35,7 +39,7 @@ int stak_state_machine_push(struct stak_state_machine_s* state_machine, struct s
 	else return -1;
 }
 int stak_state_machine_pop(struct stak_state_machine_s* state_machine, struct stak_state_s* state) {
-	if (( state_machine ) && ( state_machine->size ) && ( state_machine->position < state_machine->size )) {
+	if (( state_machine ) && ( state_machine->size ) && ( state_machine->position > 0 )) {
 		memcpy( state, &state_machine->states[state_machine->position-1], sizeof( struct stak_state_s) );
 		state_machine->states[state_machine->position-1].shutdown();
 		state_machine->position--;
