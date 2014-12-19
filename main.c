@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <time.h>
 #include <pthread.h>
+#include <sched.h>
 
 
 #include <GLES2/gl2.h>
@@ -25,6 +26,10 @@
 #include <graphics/seps114a/seps114a.h>
 #include <io/bq27510/bq27510.h>
 #include <lib/shapes.h>
+
+#include "lib/DejaVuSans.inc"                  // font data
+#include "lib/DejaVuSerif.inc"
+#include "lib/DejaVuSansMono.inc"
 
 // prototypes
 void init();
@@ -69,6 +74,102 @@ void term(int signum)
     terminate = 1;
 }
 
+
+#define NUM_PARTICLES 50
+
+typedef struct particle {
+    double x, y;
+    double vx, vy;
+    int r, g, b;
+    int radius;
+} particle_t;
+
+particle_t particles[NUM_PARTICLES];
+
+int showTrails = 1;
+int directionRTL = 0;
+int alternate = 1;
+double gravity = 0.05;
+
+// Initialize _all_ the particles
+void initParticles(int w, int h) {
+    int i;
+    for (i = 0; i < NUM_PARTICLES; i++) {
+        particle_t *p = &particles[i];
+
+        p->x = 48.0;
+        p->y = 48.0;
+        p->vx = (rand() % 6) - 3;
+        p->vy = (rand() % 6) - 3;
+        p->r = rand() % 256;
+        p->g = rand() % 256;
+        p->b = rand() % 256;
+        p->radius = (rand() % 5) + 5;
+
+        if (directionRTL) {
+            p->vx *= -1.0;
+            p->x = w;
+        }
+    }
+}
+
+void paintBG(int w, int h) {
+    //if (!showTrails)
+    //    return Background(0, 0, 0);
+
+    Fill(0, 0, 0, 1);
+    Rect(0, 0, w, h);
+}
+
+void draw(int w, int h) {
+    int i;
+    particle_t *p;
+
+    paintBG(w, h);
+
+    for (i = 0; i < NUM_PARTICLES; i++) {
+        p = &particles[i];
+
+        Fill(p->r, p->g, p->b, 1.0);
+        Circle(p->x, p->y, p->radius);
+
+        // Apply the velocity
+        p->x += p->vx;
+        p->y += p->vy;
+
+        p->vx *= 0.98;
+        if (p->vy > 0.0)
+            p->vy *= 0.97;
+
+        // Gravity
+        p->vy -= gravity;
+
+        // Stop particles leaving the canvas  
+        if (p->x < -4.0)
+            p->x = w + 4.0;
+        if (p->x > w + 4.0)
+            p->x = -4.0;
+
+        // When particle reaches the bottom of screen reset velocity & start posn
+        if (p->y < -4.0) {
+            p->x = 0.0;
+            p->y = 0.0;
+            p->vx = (rand() % 6) - 3;
+            p->vy = (rand() % 10);
+
+            if (directionRTL) {
+                p->vx *= -1.0;
+                p->x = w;
+            }
+        }
+
+        if (p->y > h + 4.0)
+            p->y = -4.0;
+    }
+
+   //End();
+}
+
 int main(int argc, char** argv) {
     uint64_t last_time, current_time, start_time, delta_time;
     delta_time = start_time = last_time = current_time = get_time();
@@ -90,6 +191,7 @@ int main(int argc, char** argv) {
 
 
 		redraw();
+        //stak_seps114a_update(&lcd_device);
 
         delta_time = (get_time() - current_time);
         uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
@@ -107,6 +209,28 @@ void init_shapes_state() {
 
     float ratio = (float)canvas.screen_width / (float)canvas.screen_height;
     glFrustumf(-ratio, ratio, -1.0f, 1.0f, 1.0f, 10.0f);
+
+    SansTypeface = loadfont(DejaVuSans_glyphPoints,
+                DejaVuSans_glyphPointIndices,
+                DejaVuSans_glyphInstructions,
+                DejaVuSans_glyphInstructionIndices,
+                DejaVuSans_glyphInstructionCounts,
+                DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
+
+    SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
+                 DejaVuSerif_glyphPointIndices,
+                 DejaVuSerif_glyphInstructions,
+                 DejaVuSerif_glyphInstructionIndices,
+                 DejaVuSerif_glyphInstructionCounts,
+                 DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
+
+    MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
+                DejaVuSansMono_glyphPointIndices,
+                DejaVuSansMono_glyphInstructions,
+                DejaVuSansMono_glyphInstructionIndices,
+                DejaVuSansMono_glyphInstructionCounts,
+                DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
+
 }
 void init() {
 	struct sigaction action;
@@ -138,18 +262,16 @@ void init() {
 		printf("Error creating stak canvas\n");
 	}
 
-
-    /*vg = nvgCreateGLES2(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
-    if (vg == NULL) {
-        printf("Could not init nanovg.\n");
-        terminate = 1;
-        return;
-    }*/
-    glClearColor(1,1,1,1);
+    glClearColor(0,0,0,1);
 
     init_shapes_state();
+    initParticles(96, 96);
 
 	pthread_create(&thread_seps114a_update, NULL, update_display, NULL);
+
+    struct sched_param params;
+    params.sched_priority = 1;//sched_get_priority_max(SCHED_FIFO);
+    pthread_setschedparam(thread_seps114a_update, SCHED_FIFO, &params);
 }
 
 void shutdown() {
@@ -157,7 +279,6 @@ void shutdown() {
 		fprintf(stderr, "Error joining thread\n");
 		return;
 	}
-    //nvgDeleteGLES2(vg);
 	stak_canvas_destroy(&canvas);
 	stak_seps114a_close(&lcd_device);
 }
@@ -190,21 +311,14 @@ void* update_display(void* arg) {
 
 void render(int w, int h)
 {
-    float clearColor[4] = {1,1,1,1};
-    VGfloat dotcolor[4] = {0, 0, 0, 0.3};
     Start(96,96);
-    RGBA(.5, 0, 0, 0.3, dotcolor);
-    setfill(dotcolor);
-    Circle(32, 32, 10);
-    //	nvgResetTransform(vg);
-    //	nvgFillColor(vg, nvgRGBA(28,30,34,192));
-    //	nvgStrokeColor(vg, nvgRGBA(0,0,0,32));
-    //	nvgCircle(vg, w*0.5f, h*0.5f, 30.5f);
+    draw(96,96);
+    Fill(255, 255, 255, 0.75);
+    TextMid(96 / 2, 96 * 0.6, "OT", MonoTypeface, 96 / 8);
+    TextMid(96 / 2, 96 * 0.8, "TO", MonoTypeface, 96 / 8);
 }
 
 void redraw() {
-	// start with a clear screen
-	//glClear( GL_COLOR_BUFFER_BIT );
 
 	render(canvas.screen_width,canvas.screen_height);
 	stak_canvas_swap(&canvas);

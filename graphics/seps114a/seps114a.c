@@ -6,6 +6,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <syslog.h>
+#include <stdio.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <linux/spi/spidev.h>
@@ -87,6 +88,7 @@ int stak_seps114a_init(stak_seps114a_s* device) {
     device->spi_fd = open("/dev/spidev0.0", O_RDWR);
     if(device->spi_fd < 0) {
         // error out
+        printf("Failed to open spi device\n");
         return -1;
     }
     assert(ioctl (device->spi_fd, SPI_IOC_WR_MODE, &STAK_SEPS114A_SPI_MODE) != -1);
@@ -160,10 +162,10 @@ int stak_seps114a_init(stak_seps114a_s* device) {
     stak_seps114a_write_command_value(device, SEPS114A_SCAN_OFF_LEVEL,0x04);         // VCC_C*0.75
     // Set memory access point
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
-    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x01);
     // Display ON
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
-    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x02);
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
 
     device->framebuffer = NULL;
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
@@ -193,7 +195,7 @@ inline void stak_seps114a_spidev_write(stak_seps114a_s* device, char* data, int 
     message.speed_hz = STAK_SEPS114A_SPI_SPEED;
     message.bits_per_word = STAK_SEPS114A_SPI_BPW;
     message.cs_change = 0;
-    ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message);
+    assert( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message)) != -1 );
 }
 int stak_seps114a_close(stak_seps114a_s* device) {
 
