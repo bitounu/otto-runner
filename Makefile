@@ -66,10 +66,10 @@ header:
 	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
 
 particles.so: particles.o
-	gcc -shared -o particles.so particles.o
+	@gcc -shared -o particles.so particles.o
 
 inputd: src/daemons/input/inputd.o
-	gcc -o inputd src/daemons/input/inputd.o
+	@gcc -o inputd src/daemons/input/inputd.o
 
 $(BIN): header $(OBJS)
 	@$(CC) -o $@ -Wl,--whole-archive $(OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic

@@ -23,7 +23,7 @@ particle_t particles[NUM_PARTICLES];
 int showTrails = 1;
 int directionRTL = 0;
 int alternate = 1;
-double gravity = 1.0;
+double gravity = 0.5;
 
 // Initialize _all_ the particles
 void initParticles(int w, int h) {
