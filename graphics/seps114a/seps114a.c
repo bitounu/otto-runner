@@ -191,9 +191,9 @@ stak_seps114a_s* stak_seps114a_create() {
     printf("Display enabled\n");
 
     device->framebuffer = NULL;
-    printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
+    //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
-    printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
+    //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     //memset(device->framebuffer, 0x33,96*96*2);
     return device;
 }

@@ -5,6 +5,12 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/inotify.h>
+#include <errno.h>
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include <pthread.h>
 #include <sched.h>
@@ -27,6 +33,42 @@
      _a < _b ? _a : _b; })
 
 static volatile sig_atomic_t terminate;
+static void *lib_handle;
+int lib_open(struct stak_state_s* app_state) {
+    char *error;
+
+    lib_handle = dlopen ("./particles.so", RTLD_LAZY);
+    if (!lib_handle) {
+        fputs (dlerror(), stderr);
+        exit(1);
+    }
+
+    app_state->init = dlsym(lib_handle, "init");
+    if ((error = dlerror()) != NULL)  {
+        fputs(error, stderr);
+        exit(1);
+    }
+    app_state->draw = dlsym(lib_handle, "draw");
+    if ((error = dlerror()) != NULL)  {
+        fputs(error, stderr);
+        exit(1);
+    }
+    app_state->shutdown = dlsym(lib_handle, "shutdown");
+    if ((error = dlerror()) != NULL)  {
+        fputs(error, stderr);
+        exit(1);
+    }
+
+    return 0;
+}
+
+int lib_close(struct stak_state_s* app_state) {
+    if (!lib_handle) {
+        printf("No library loaded\n");
+    }
+    dlclose(lib_handle);
+    return 0;
+}
 
 //#define STAK_USE_THREADING
 
@@ -103,7 +145,10 @@ struct stak_application_s* stak_application_create() {
                 DejaVuSansMono_glyphInstructionIndices,
                 DejaVuSansMono_glyphInstructionCounts,
                 DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
+    struct stak_state_s app_state;
 
+    lib_open(&app_state);
+    stak_state_machine_push(application->state_machine, &app_state);
     return application;
 }
 int stak_application_destroy(struct stak_application_s* application) {
@@ -120,8 +165,28 @@ int stak_application_destroy(struct stak_application_s* application) {
 	free(application);
     return 0;
 }
+
+#define EVENT_SIZE  ( sizeof (struct inotify_event) )
+#define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
+
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
+    int lib_fd = inotify_init();
+    int lib_wd, lib_read_length;
+    char lib_notify_buffer[BUF_LEN];
+
+    if( lib_fd < 0 ) {
+        perror( "inotify_init" );
+        return -1;
+    }
+    lib_wd = inotify_add_watch( lib_fd, "./", IN_CLOSE_WRITE );
+    int flags = fcntl(lib_fd, F_GETFL, 0);
+    if (fcntl(lib_fd, F_SETFL, flags | O_NONBLOCK) == -1 ) {
+        perror( "fcntl" );
+        close(lib_fd);
+        return -1;
+
+    }
 
 	    // setup sigterm handler
     action.sa_handler = stak_application_terminate_cb;
@@ -141,7 +206,7 @@ int stak_application_run(struct stak_application_s* application) {
             frames_per_second = frames_this_second;
             frames_this_second = 0;
             last_time = current_time;
-            printf("FPS: %i\n", frames_per_second);
+            //printf("FPS: %i\n", frames_per_second);
         }
 
 
@@ -155,6 +220,42 @@ int stak_application_run(struct stak_application_s* application) {
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+
+
+        // read inotify buffer to see if library has been modified
+        lib_read_length = read( lib_fd, lib_notify_buffer, BUF_LEN );
+        if (( lib_read_length < 0 ) && ( errno == EAGAIN)){
+        }
+        else if(lib_read_length >= 0) {
+            int i = 0;
+            while ( i < lib_read_length ) {
+                struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
+                //if ( event->len ) {
+                    if ( event->mask & IN_CLOSE_WRITE ) {
+                        if ( event->mask & IN_ISDIR ) {
+                            //printf( "The directory %s was modified.\n", event->name );
+                        }
+                        else {
+                            if( strstr(event->name, "particles.so") != 0 ) {
+                                struct stak_state_s app_state;
+                                stak_state_machine_pop(application->state_machine, &app_state);
+                                lib_close(&app_state);
+                                lib_open(&app_state);
+                                stak_state_machine_push(application->state_machine, &app_state);
+                                printf( "The file %s was modified.\n", event->name );
+                            }
+                        }
+                    }
+                    else {
+                        //printf("Received event %i on file %s\n", event->mask, event->name);
+                    }
+                //}
+                i += EVENT_SIZE + event->len;
+            }
+        }
+        else {
+            perror( "read" );
+        }
 	}
     return 0;
 }

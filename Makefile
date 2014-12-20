@@ -28,6 +28,7 @@ LDFLAGS+=-L$(STAGING_DIR)/usr/lib/ \
 		 -lnanovg \
 		 -lpthread \
 		 -lc \
+		 -ldl \
 		 -ljpeg \
 		 -lrt \
 		 -lm \
@@ -50,7 +51,7 @@ FAILURE="\33[36;1mStak \33[37m➜ \33[31mBuild Failed!\33[0;39m"
 BUILDING="\33[36;1mStak \33[0;37m➜ \33[32mBuilding \33[34m$<...\33[39m"
 COMPLETE="\33[36mStak \33[37m➜ \33[32mBuild Complete!\33[39m"
 
-all: $(BIN) $(LIB)
+all: $(BIN) $(LIB) particles.so
 	@echo $(COMPLETE)
 
 header:
@@ -62,6 +63,9 @@ header:
 %.o: %.cpp
 	@echo $(BUILDING)
 	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
+
+particles.so: particles.o
+	gcc -shared -o particles.so particles.o
 
 $(BIN): header $(OBJS)
 	@$(CC) -o $@ -Wl,--whole-archive $(OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
