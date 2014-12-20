@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <sys/stat.h>
+#include <sys/msg.h>
 
 #include <pthread.h>
 #include <sched.h>
@@ -21,6 +21,9 @@
 #include <lib/DejaVuSerif.inc>
 #include <lib/DejaVuSansMono.inc>
 #include <lib/shapes.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <daemons/input/input.h>
 
 #define max(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -102,6 +105,8 @@ struct stak_application_s* stak_application_create() {
 	application->state_machine = stak_state_machine_create( 32 );
     application->display = stak_seps114a_create();
     application->canvas = stak_canvas_create(STAK_CANVAS_OFFSCREEN, 96, 96);
+
+    stak_input_init();
 
     if(!bcm2835_init()) {
         printf("Failed to init BCM2835 library.\n");
@@ -206,6 +211,7 @@ int stak_application_run(struct stak_application_s* application) {
             frames_per_second = frames_this_second;
             frames_this_second = 0;
             last_time = current_time;
+            stak_rpc_get_state(frames_per_second);
             //printf("FPS: %i\n", frames_per_second);
         }
 

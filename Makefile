@@ -3,6 +3,7 @@ OBJS=\
 	src/application/application.o \
 	src/application/state/state.o \
 	src/core/core.o \
+	src/daemons/input/input.o \
 	graphics/seps114a/seps114a.o \
 	graphics/canvas/canvas.o \
 	io/bq27510/bq27510.o \
@@ -51,7 +52,7 @@ FAILURE="\33[36;1mStak \33[37m➜ \33[31mBuild Failed!\33[0;39m"
 BUILDING="\33[36;1mStak \33[0;37m➜ \33[32mBuilding \33[34m$<...\33[39m"
 COMPLETE="\33[36mStak \33[37m➜ \33[32mBuild Complete!\33[39m"
 
-all: $(BIN) $(LIB) particles.so
+all: $(BIN) $(LIB) particles.so inputd
 	@echo $(COMPLETE)
 
 header:
@@ -66,6 +67,9 @@ header:
 
 particles.so: particles.o
 	gcc -shared -o particles.so particles.o
+
+inputd: src/daemons/input/inputd.o
+	gcc -o inputd src/daemons/input/inputd.o
 
 $(BIN): header $(OBJS)
 	@$(CC) -o $@ -Wl,--whole-archive $(OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic

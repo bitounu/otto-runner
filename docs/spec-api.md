@@ -50,3 +50,10 @@ With the exception of initialization functions, all stak functions should return
 - **shutdown** - Shutdown should be used when bringing down a high level subsystem.
 - **open** - Open should be used when working with low level data, files, hardware.
 - **close** - Open should be used when working with low level data, files, hardware.
+
+
+int stak_timer_create()
+int stak_timer_destroy()
+int stak_timer_update()
+int stak_timer_get_time()
+int stak_timer_reset()
