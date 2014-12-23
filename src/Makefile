@@ -11,7 +11,8 @@ APIS=build/plugins/test/test.so \
 	 build/plugins/ipc/ipc.so
 
 API_EXTRA_SRCS= \
-	apis/input/input.c
+	apis/input/input.c \
+	application/rpc/rpc.c
 API_EXTRA_OBJS=$(patsubst %.c, build/%.o, $(API_EXTRA_SRCS))
 
 
