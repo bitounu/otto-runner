@@ -1,11 +1,26 @@
 OTTO SDK testbed
 ----------------
+For Ubuntu 14.04LTS
+
+Vagrant Build Image - <tbd>
 
 Dependencies
 ------------
+build-essential inotify-tools
+***
 	sudo apt-get install build-essential inotify-tools
 
-	bcm2835 - http://www.airspayce.com/mikem/bcm2835/
+bcm2835 - http://www.airspayce.com/mikem/bcm2835/  
+***
+	wget http://www.airspayce.com/mikem/bcm2835/bcm2835-1.38.tar.gz  
+	tar zxvf bcm2835-1.xx.tar.gz  
+	cd bcm2835-1.xx  
+	./configure  
+	make  
+	sudo make check  
+	sudo make install  
+
+
 
 To build
 --------
