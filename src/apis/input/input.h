@@ -23,12 +23,14 @@ struct stak_input_state_s {
 };
 
 
-enum stak_ipc_calls {
-	IPC_GET_STATE = 1
+enum stak_rpc_calls {
+	IPC_GET_STATE = 1,
+	IPC_GET_STATE_RESPONSE
 };
 
 int stak_input_init();
 int stak_rpc_input_get_state();
-int stak_remote_input_get_state(struct stak_rpc_msgbuf* message);
+int stak_rpc_message_send(void* message, int size);
+int stak_rpc_message_get(struct stak_rpc_msgbuf* message);
 struct stak_input_state_s stak_input_get_state();
 #endif

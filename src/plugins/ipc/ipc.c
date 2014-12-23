@@ -1,12 +1,10 @@
-#include <daemons/input/input.h>
+#include <apis/input/input.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-
-static int ipc_message_queue;
 
 struct stak_rpc_msgbuf* message;
 
@@ -17,7 +15,7 @@ int init() {
 
     message = malloc(256);
 
-    
+    setbuf(stdout, NULL);
     return 0;
 }
 
@@ -27,14 +25,20 @@ int shutdown() {
 
 
 int draw() {
-    if( stak_remote_input_get_state(message) == 0) {
+    struct stak_input_get_state_rpc* msg = 0;
+    if( stak_rpc_message_get(message) == 0) {
         switch(message->mtype) {
             case IPC_GET_STATE:
-                printf("%i \n",
-                        ((struct stak_input_get_state_rpc*)message)->some_useless_data);
+                msg = (struct stak_input_get_state_rpc*)message;
+                printf("%i ", msg->some_useless_data);
+                msg->mtype = IPC_GET_STATE_RESPONSE;
+                if(msg->some_useless_data > 4)
+                    msg->some_useless_data = 0;
+                else msg->some_useless_data++;
+                stak_rpc_message_send(msg, sizeof(struct stak_input_get_state_rpc));
                 break;
             default:
-                printf("Received unknown message type %l\n", message->mtype);
+                //printf("Received unknown message type %l\n", message->mtype);
                 break;
         }
     }

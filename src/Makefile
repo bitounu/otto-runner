@@ -11,14 +11,14 @@ APIS=build/plugins/test/test.so \
 	 build/plugins/ipc/ipc.so
 
 API_EXTRA_SRCS= \
-	daemons/input/input.c
+	apis/input/input.c
 API_EXTRA_OBJS=$(patsubst %.c, build/%.o, $(API_EXTRA_SRCS))
 
 
 APISRCS=$(patsubst %.so,%.c,$(APIS))
 APIOBJS=$(patsubst %.so,%.o,$(APIS))
 
-.SECONDARY:  $(OBJECTS) $(APIOBJS)
+.SECONDARY:  $(OBJECTS) $(APIOBJS) $(API_EXTRA_OBJS)
 
 all: header $(BIN) $(LIB) $(APIS)
 	@echo $(COMPLETE)

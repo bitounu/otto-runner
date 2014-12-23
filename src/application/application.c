@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <unistd.h>
+#include <string.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/inotify.h>
@@ -15,6 +17,7 @@
 #include <pthread.h>
 #include <sched.h>
 
+#if 0
 #include <bcm2835.h>
 
 #include <lib/DejaVuSans.inc>                  // font data
@@ -24,6 +27,8 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <daemons/input/input.h>
+
+#endif
 
 #define max(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -37,10 +42,11 @@
 
 static volatile sig_atomic_t terminate;
 static void *lib_handle;
-int lib_open(struct stak_state_s* app_state) {
+int lib_open(char* plugin_name, struct stak_state_s* app_state) {
     char *error;
 
-    lib_handle = dlopen ("./particles.so", RTLD_LAZY);
+    lib_handle = dlopen (plugin_name, RTLD_LAZY);
+    printf("loading %s\n", plugin_name);
     if (!lib_handle) {
         fputs (dlerror(), stderr);
         exit(1);
@@ -90,8 +96,9 @@ void* stak_application_hal_thread(void* arg) {
     
     while(!terminate) {
         current_time = stak_core_get_time();
-
+#if 0
         stak_seps114a_update(application->display);
+#endif
 
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
@@ -100,9 +107,12 @@ void* stak_application_hal_thread(void* arg) {
     return 0;
 }
 #endif
-struct stak_application_s* stak_application_create() {
-	struct stak_application_s* application = calloc(1, sizeof(struct stak_application_s));
-	application->state_machine = stak_state_machine_create( 32 );
+struct stak_application_s* stak_application_create(char* plugin_name) {
+    struct stak_application_s* application = calloc(1, sizeof(struct stak_application_s));
+    application->state_machine = stak_state_machine_create( 32 );
+    application->plugin_name = malloc( strlen( plugin_name ) + 1 );
+    strcpy( application->plugin_name, plugin_name );
+#if 0
     application->display = stak_seps114a_create();
     application->canvas = stak_canvas_create(STAK_CANVAS_OFFSCREEN, 96, 96);
 
@@ -113,6 +123,7 @@ struct stak_application_s* stak_application_create() {
         stak_application_terminate();
         return 0;
     }
+#endif
     #ifdef STAK_USE_THREADING
     pthread_create(&application->thread_hal_update, NULL, stak_application_hal_thread, application);
 
@@ -121,6 +132,7 @@ struct stak_application_s* stak_application_create() {
     pthread_setschedparam(application->thread_hal_update, SCHED_FIFO, &params);
     #endif
 
+#if 0
     // set up screen ratio
     glViewport(0, 0, (GLsizei) 96, (GLsizei) 96);
 
@@ -150,9 +162,10 @@ struct stak_application_s* stak_application_create() {
                 DejaVuSansMono_glyphInstructionIndices,
                 DejaVuSansMono_glyphInstructionCounts,
                 DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
+#endif
     struct stak_state_s app_state;
 
-    lib_open(&app_state);
+    lib_open(application->plugin_name, &app_state);
     stak_state_machine_push(application->state_machine, &app_state);
     return application;
 }
@@ -164,10 +177,13 @@ int stak_application_destroy(struct stak_application_s* application) {
     }
     #endif
 
-	stak_state_machine_destroy(application->state_machine);
+    stak_state_machine_destroy(application->state_machine);
+
+#if 0
     stak_canvas_destroy(application->canvas);
     stak_seps114a_destroy(application->display);
-	free(application);
+#endif
+    free(application);
     return 0;
 }
 
@@ -185,6 +201,10 @@ int stak_application_run(struct stak_application_s* application) {
         return -1;
     }
     lib_wd = inotify_add_watch( lib_fd, "./", IN_CLOSE_WRITE );
+    if( lib_wd < 0 ) {
+        perror( "inotify_add_watch" );
+        return -1;
+    }
     int flags = fcntl(lib_fd, F_GETFL, 0);
     if (fcntl(lib_fd, F_SETFL, flags | O_NONBLOCK) == -1 ) {
         perror( "fcntl" );
@@ -193,39 +213,53 @@ int stak_application_run(struct stak_application_s* application) {
 
     }
 
-	    // setup sigterm handler
+        // setup sigterm handler
     action.sa_handler = stak_application_terminate_cb;
     sigaction(SIGINT, &action, NULL);
 
-    uint64_t last_time, current_time, start_time, delta_time;
-    delta_time = start_time = last_time = current_time = stak_core_get_time();
+    uint64_t last_time, current_time, delta_time;
+    delta_time = last_time = current_time = stak_core_get_time();
     int frames_this_second = 0;
     int frames_per_second = 0;
-	while(!terminate) {
-		//stak_state_machine_top(application->state_machine, current_state);
-		frames_this_second++;
+    while(!terminate) {
+        //stak_state_machine_top(application->state_machine, current_state);
+        frames_this_second++;
         current_time = stak_core_get_time();
 
         
         if(current_time > last_time + 1000000) {
             frames_per_second = frames_this_second;
+            frames_per_second = frames_per_second;
             frames_this_second = 0;
             last_time = current_time;
+#if 0
             stak_rpc_get_state(frames_per_second);
+#endif
             //printf("FPS: %i\n", frames_per_second);
         }
 
 
         stak_state_machine_run(application->state_machine);
+#if 0
         stak_canvas_swap(application->canvas);
         stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
         #ifndef STAK_USE_THREADING
         stak_seps114a_update(application->display);
         #endif
+#endif
 
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+
+        char* plugin_file_name = 0;
+
+        {
+            int start_pos = strrchr( application->plugin_name, '/' ) + 1 - application->plugin_name;
+            int length = strlen(application->plugin_name) - start_pos;
+            plugin_file_name = malloc(length + 1);
+            strcpy(plugin_file_name, application->plugin_name + start_pos);
+        }
 
 
         // read inotify buffer to see if library has been modified
@@ -237,36 +271,29 @@ int stak_application_run(struct stak_application_s* application) {
             while ( i < lib_read_length ) {
                 struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
                 //if ( event->len ) {
-                    if ( event->mask & IN_CLOSE_WRITE ) {
-                        if ( event->mask & IN_ISDIR ) {
-                            //printf( "The directory %s was modified.\n", event->name );
-                        }
-                        else {
-                            if( strstr(event->name, "particles.so") != 0 ) {
-                                struct stak_state_s app_state;
-                                stak_state_machine_pop(application->state_machine, &app_state);
-                                lib_close(&app_state);
-                                lib_open(&app_state);
-                                stak_state_machine_push(application->state_machine, &app_state);
-                                printf( "The file %s was modified.\n", event->name );
-                            }
-                        }
+                if ( event->mask & IN_CLOSE_WRITE ) {
+                    if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
+                        struct stak_state_s app_state;
+                        stak_state_machine_pop(application->state_machine, &app_state);
+                        lib_close(&app_state);
+                        lib_open(application->plugin_name, &app_state);
+                        stak_state_machine_push(application->state_machine, &app_state);
                     }
                     else {
-                        //printf("Received event %i on file %s\n", event->mask, event->name);
+                        //printf("File %s changed while waiting for %s\n", event->name, plugin_file_name);
                     }
-                //}
+                }
                 i += EVENT_SIZE + event->len;
             }
         }
         else {
             perror( "read" );
         }
-	}
+    }
     return 0;
 }
 
 int stak_application_terminate() {
-	terminate = 1;
+    terminate = 1;
     return 0;
 }
