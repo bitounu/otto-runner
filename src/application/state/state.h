@@ -2,7 +2,7 @@
 #define STAK_STATE_H
 struct stak_state_s{
 	int (*init)();
-	int (*draw)();
+	int (*update)();
 	int (*shutdown)();
 };
 

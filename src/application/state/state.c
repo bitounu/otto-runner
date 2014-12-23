@@ -24,7 +24,7 @@ int stak_state_machine_run(struct stak_state_machine_s* state_machine) {
 	if( error ) {
 		return -1;
 	} else { 
-		state.draw();
+		state.update();
     	return 0;
 	}
 

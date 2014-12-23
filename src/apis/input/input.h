@@ -1,19 +1,21 @@
 #ifndef STAK_API_INPUT_H
 #define STAK_API_INPUT_H
+#include <application/rpc/rpc.h>
 
 
-struct stak_input_get_state_rpc {
+// return type for 'stak_rpc_input_get_rotary_position' call
+struct stak_input_get_rotary_position_rpc {
 	long mtype;
-    int some_useless_data;
+    int rotary_position;
 };
 
 
-struct stak_input_state_s {
-	int shutter;
-	int rotary_button;
-	int rotary_delta;
+// list of all RPC calls for input api.
+enum stak_rpc_input_calls {
+	RPC_INPUT_START = 128,					// each api should have a unique starting value
+	RPC_DEFINE_ID(GET_ROTARY_POSITION),
+	RPC_INPUT_END
 };
 
-int stak_rpc_input_get_state();
-struct stak_input_state_s stak_input_get_state();
+int stak_rpc_input_get_rotary_position();
 #endif

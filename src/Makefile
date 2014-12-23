@@ -8,7 +8,8 @@ OBJS=$(patsubst %.c,build/%.o,$(SRCS))
 BIN=build/main
 BIN2=build/main
 APIS=build/plugins/test/test.so \
-	 build/plugins/ipc/ipc.so
+	 build/plugins/ipc/ipc.so \
+	 build/daemons/input/inputd.so
 
 API_EXTRA_SRCS= \
 	apis/input/input.c \
@@ -34,7 +35,7 @@ build/%.o: %.c
 
 build/%.so: build/%.o $(API_EXTRA_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) -shared -o build/${notdir $@} $< $(API_EXTRA_OBJS)
+	@$(CC) -shared -o build/${notdir $@} $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
 
 
 $(BIN): $(OBJS)

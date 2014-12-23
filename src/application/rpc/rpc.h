@@ -10,7 +10,7 @@ struct stak_generic_message_buf_rpc {
 
 struct stak_rpc_msgbuf {
     long mtype;       /* message type, must be > 0 */
-    char mtext[];    /* message data */ 
+    char mtext[];     /* message data */ 
 };
 
 

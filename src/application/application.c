@@ -57,7 +57,7 @@ int lib_open(char* plugin_name, struct stak_state_s* app_state) {
         fputs(error, stderr);
         exit(1);
     }
-    app_state->draw = dlsym(lib_handle, "draw");
+    app_state->update = dlsym(lib_handle, "update");
     if ((error = dlerror()) != NULL)  {
         fputs(error, stderr);
         exit(1);

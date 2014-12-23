@@ -25,8 +25,8 @@ int shutdown() {
 }
 
 
-int draw() {
-    struct stak_input_get_state_rpc* msg = 0;
+int update() {
+    /*struct stak_input_get_state_rpc* msg = 0;
     if( stak_rpc_message_get(message) == 0) {
         switch(message->mtype) {
             case RPC_GET_STATE:
@@ -42,6 +42,6 @@ int draw() {
                 //printf("Received unknown message type %l\n", message->mtype);
                 break;
         }
-    }
+    }*/
     return 0;
 }
