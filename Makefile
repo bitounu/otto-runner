@@ -1,87 +1,59 @@
-OBJS=\
-	main.o \
-	src/application/application.o \
-	src/application/state/state.o \
-	src/core/core.o \
-	src/daemons/input/input.o \
-	graphics/seps114a/seps114a.o \
-	graphics/canvas/canvas.o \
-	io/bq27510/bq27510.o \
-	lib/lodepng.o \
-	graphics/tinypng/TinyPngOut.o \
-	lib/libshapes.o \
-	tiger.o
-SRCS=$(patsubst %.o,%.c,$(OBJS))
-BIN=stak-test
-CFLAGS+=-DSTANDALONE -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DTARGET_POSIX -D_LINUX -fPIC -DPIC -D_REENTRANT -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -U_FORTIFY_SOURCE -Wall -g -DHAVE_LIBOPENMAX=2 -DOMX -DOMX_SKIP64BIT -ftree-vectorize -pipe -DUSE_EXTERNAL_OMX -DHAVE_LIBBCM_HOST -DUSE_EXTERNAL_LIBBCM_HOST -DUSE_VCHIQ_ARM -Wno-psabi
-LDFLAGS+=-L$(STAGING_DIR)/usr/lib/ \
-		 -L$(STAGING_DIR)/opt/vc/lib/ \
-		 -lGLESv2 \
-		 -lEGL \
-		 -lopenmaxil \
-		 -lbcm_host \
-		 -lvcos \
-		 -lvchiq_arm \
-		 -lkhrn_client \
-		 -lvchostif \
-		 -lvcilcs \
-		 -lvcfiled_check \
-		 -lnanovg \
-		 -lpthread \
-		 -lc \
-		 -ldl \
-		 -ljpeg \
-		 -lrt \
-		 -lm \
-		 -lbcm2835 \
-		 -L../libs/ilclient \
-		 -L../libs/vgfont \
-		 -L/usr/local/lib
-INCLUDES+=-I$(STAGING_DIR)/usr/include \
-		  -I$(STAGING_DIR)/opt/vc/include/ \
-		  -I$(STAGING_DIR)/opt/vc/include/interface/vcos/pthreads \
-		  -I$(STAGING_DIR)/opt/vc/include/interface/vmcs_host/linux \
-		  -I./ \
-		  -I./src/ \
-		  -I../libs/ilclient \
-		  -I../libs/vgfont
+include Makefile-common.inc
+
+MAIN_BIN=		build/main
+MAIN_SRCS=		src/main.c \
+				src/application/application.c \
+				src/application/state/state.c \
+				src/core/core.c
 
 
-HEADER="\33[35m----------[\33[36;1m Stak: \33[0;33m$(BIN) \33[35m]----------\33[39m"
-FAILURE="\33[36;1mStak \33[37m➜ \33[31mBuild Failed!\33[0;39m"
-BUILDING="\33[36;1mStak \33[0;37m➜ \33[32mBuilding \33[34m$<...\33[39m"
-COMPLETE="\33[36mStak \33[37m➜ \33[32mBuild Complete!\33[39m"
+API_SRCS=		src/plugins/test/test.c \
+	 			src/plugins/ipc/ipc.c \
+	 			src/daemons/input/inputd.c
 
-all: $(BIN) $(LIB) particles.so inputd
+API_EXTRA_SRCS= src/apis/input/input.c \
+				src/application/rpc/rpc.c
+
+MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
+API_OBJS=		$(patsubst %.c,	build/%.o,	$(API_SRCS))
+API_EXTRA_OBJS=	$(patsubst %.c,	build/%.o,	$(API_EXTRA_SRCS))
+API_OUTPUT=		$(patsubst %.c,	build/%.so,	$(notdir $(API_SRCS)))
+
+
+ALL_OBJS=		$(MAIN_OBJS) $(API_OBJS) $(API_EXTRA_OBJS)
+
+.SECONDARY:  $(ALL_OBJS)
+
+all: header $(MAIN_BIN) $(API_OUTPUT)
 	@echo $(COMPLETE)
 
 header:
 	@echo $(HEADER)
-%.o: %.c
+
+build/%.o: %.c
 	@echo $(BUILDING)
-	@$(CC) $(CFLAGS) $(INCLUDES) -s -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
+	@mkdir -p `dirname $@`
+	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
 
-%.o: %.cpp
-	@echo $(BUILDING)
-	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
+build/%.so: $(API_OBJS) $(API_EXTRA_OBJS)
+	@echo $(BUILDING_DL)
+	@$(CC) $(CFLAGS) -shared -o $@ $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
+	@$(STRIP) $@
 
-particles.so: particles.o
-	@gcc -shared -o particles.so particles.o
 
-inputd: src/daemons/input/inputd.o
-	@gcc -o inputd src/daemons/input/inputd.o
+$(MAIN_BIN): $(MAIN_OBJS)
+	@echo $(BUILDING_DL)
+	@$(CC)  -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
+	@$(STRIP) $@
 
-$(BIN): header $(OBJS)
-	@$(CC) -o $@ -Wl,--whole-archive $(OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
+%.a: $(MAIN_OBJS)
+	@$(AR) r $@ $<
 
-%.a: $(OBJS)
-	@$(AR) r $@ $^
+run: $(MAIN_BIN)
+	@./$(MAIN_BIN)
 
-run:
-	@./$(BIN)
 clean:
-	@for i in $(OBJS); do (if test -e "$$i"; then ( rm $$i ); fi ); done
-	@rm -f $(BIN) $(LIB)
+	@rm -f $(MAIN_BIN) $(API_OUTPUT) $(ALL_OBJS)
 
 
 
