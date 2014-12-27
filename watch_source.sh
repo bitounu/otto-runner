@@ -18,7 +18,7 @@ fi
 		if [ "$extension" == "c" ]; then
 			cd src ; make
 			if [ `uname` == "Darwin" ]; then
-				ssh -i $IDENTITY vagrant@$IP  -o "ForwardAgent yes" "cd /vagrant/otto-sdk/ ; make"
+				ssh -i $IDENTITY vagrant@$IP  -o "ForwardAgent yes" "cd /vagrant/otto-sdk/ ; make PREFIX=/opt/cross CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm"
 			fi
 		fi
 	done
