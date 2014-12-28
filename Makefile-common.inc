@@ -3,7 +3,6 @@ ifdef PREFIX
 	CFLAGS+=--sysroot=$(PREFIX) -I$(PREFIX)/include
 endif
 LDFLAGS+=-lpthread \
-		 -lc \
 		 -ldl \
 		 -lrt \
 		 -lm

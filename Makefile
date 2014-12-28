@@ -17,7 +17,7 @@ API_EXTRA_SRCS= src/apis/input/input.c \
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
 API_OBJS=		$(patsubst %.c,	build/%.o,	$(API_SRCS))
 API_EXTRA_OBJS=	$(patsubst %.c,	build/%.o,	$(API_EXTRA_SRCS))
-API_OUTPUT=		$(patsubst %.c,	build/%.so,	$(notdir $(API_SRCS)))
+API_OUTPUT=		$(patsubst %.c,	build/%.so,	$(API_SRCS))
 
 
 ALL_OBJS=		$(MAIN_OBJS) $(API_OBJS) $(API_EXTRA_OBJS)
@@ -35,10 +35,10 @@ build/%.o: %.c
 	@mkdir -p `dirname $@`
 	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
 
-build/%.so: $(API_OBJS) $(API_EXTRA_OBJS)
+build/%.so: build/%.o $(API_EXTRA_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) $(CFLAGS) -shared -o $@ $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
-	@$(STRIP) $@
+	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
+	@$(STRIP) build/$(notdir $@)
 
 
 $(MAIN_BIN): $(MAIN_OBJS)

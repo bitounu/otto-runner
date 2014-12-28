@@ -18,7 +18,10 @@ fi
 		if [ "$extension" == "c" ]; then
 			cd src ; make
 			if [ `uname` == "Darwin" ]; then
-				ssh -i $IDENTITY vagrant@$IP  -o "ForwardAgent yes" "cd /vagrant/otto-sdk/ ; make PREFIX=/opt/cross CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm"
+				#ssh -i $IDENTITY vagrant@$IP  -o "ForwardAgent yes" "cd /vagrant/otto-sdk/ ; make PREFIX=/opt/cross CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm"
+				#if [ -n $RPI ]; then
+				#	scp -c blowfish vagrant@$IP:build/main vagrant@$IP:build/test.so build/ipc.so 
+				#fi
 			fi
 		fi
 	done
