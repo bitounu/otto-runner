@@ -131,24 +131,25 @@ void* update_encoder(void* arg) {
 }
 
 int update() {
-    struct stak_input_get_rotary_position_rpc* msg = 0;
+    long message_buffer[10];
+    struct stak_rpc_msgbuf* msg = (struct stak_rpc_msgbuf *)&message_buffer;
 
     // get any messages available in rpc queue
-    if( stak_rpc_message_get(message_buffer) == 0) {
-        switch(message_buffer->mtype) {
+    if( stak_rpc_message_get(msg) == 0 ) {
+        switch(msg->mtype) {
 
             // RPC FUNCTION: stak_rpc_input_get_rotary_position
             // ARGUMENTS: none
             // RETURNS: int containing rotary encoder position
-            case RPC_GET_ROTARY_POSITION:
-
-                // use message buffer as the proper type for this rpc call
-                msg = (struct stak_input_get_rotary_position_rpc*)message_buffer;
-
-                // update message buffer with response data and send
-                msg->mtype = RPC_GET_ROTARY_POSITION_RESPONSE;
-                msg->rotary_position = input_state.encoder_value;
-                stak_rpc_message_send(msg, sizeof(struct stak_input_get_rotary_position_rpc));
+            case RPC_INPUT_GET_ROTARY_POSITION:
+                {
+                    long message[] = {
+                        RPC_INPUT_GET_ROTARY_POSITION_RESPONSE,
+                        1,
+                        input_state.encoder_value
+                    };
+                    stak_rpc_message_send((struct stak_rpc_msgbuf *)&message, 1);
+                }
                 break;
             default:
                 break;

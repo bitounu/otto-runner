@@ -4,14 +4,20 @@ MAIN_BIN=		build/main
 MAIN_SRCS=		src/main.c \
 				src/application/application.c \
 				src/application/state/state.c \
-				src/core/core.c
+				src/core/core.c \
+				graphics/canvas/canvas.c \
+				graphics/seps114a/seps114a.c \
+				lib/libshapes.c
 
 
 API_SRCS=		src/plugins/test/test.c \
 	 			src/plugins/ipc/ipc.c \
-	 			src/daemons/input/inputd.c
+	 			src/daemons/input/inputd.c \
+	 			src/daemons/composer/composerd.c \
+	 			src/plugins/particles/particles.c
 
 API_EXTRA_SRCS= src/apis/input/input.c \
+				src/apis/composer/composer.c \
 				src/application/rpc/rpc.c
 
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))

@@ -10,7 +10,8 @@ struct stak_generic_message_buf_rpc {
 
 struct stak_rpc_msgbuf {
     long mtype;       /* message type, must be > 0 */
-    char mtext[];     /* message data */ 
+	long argument_count;
+    long data[];     /* message data */ 
 };
 
 
@@ -25,5 +26,7 @@ int stak_rpc_init();
 int stak_rpc_message_send(void* message, int size);
 int stak_rpc_message_get(struct stak_rpc_msgbuf* message);
 int stak_rpc_message_wait(struct stak_rpc_msgbuf* message, int type);
+
+int stak_rpc_buffer_get_int(struct stak_rpc_msgbuf* buffer, int argument_number);
 struct stak_input_state_s stak_input_get_state();
 #endif

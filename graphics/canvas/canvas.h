@@ -1,6 +1,6 @@
 #ifndef OTTO_STAK_CANVAS_H
 #define OTTO_STAK_CANVAS_H
-#include "bcm_host.h"
+#include <bcm_host.h>
 #include <GLES/gl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>

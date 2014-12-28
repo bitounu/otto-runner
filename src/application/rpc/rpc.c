@@ -24,15 +24,11 @@ int stak_rpc_init() {
         perror("msgget");
         return -1;
     }
-    /*if ((ipc_shm_id = shmget(ipc_key, 1024, 0666 | IPC_CREAT)) == -1) {
-        perror("shmget");
-        return -1;
-    }*/
     return 0;
 }
 
 int stak_rpc_message_send(void* message, int size) {
-    if(msgsnd(ipc_message_queue, message, sizeof(size), 0) == -1) {
+    if(msgsnd(ipc_message_queue, message, sizeof(long)*(size+1), 0) == -1) {
         perror("msgsnd");
         return -1;
     }
@@ -54,4 +50,13 @@ int stak_rpc_message_wait(struct stak_rpc_msgbuf* message, int type) {
         return -1;
     }
     return 0;
+}
+
+int stak_rpc_buffer_get_int(struct stak_rpc_msgbuf* buffer, int argument_number) {
+    if( (buffer == 0) ||
+        (argument_number < 0) ||
+        (argument_number > buffer->argument_count) ) {
+        return -1;
+    }
+    return buffer->data[argument_number];
 }

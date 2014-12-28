@@ -2,11 +2,27 @@ CFLAGS+= -Wall -fPIC -I./src
 ifdef PREFIX
 	CFLAGS+=--sysroot=$(PREFIX) -I$(PREFIX)/include
 endif
-LDFLAGS+=-lpthread \
+LDFLAGS+=-L/opt/vc/lib/ \
+		 -lpthread \
 		 -ldl \
 		 -lrt \
-		 -lm
-INCLUDES+=-I`pwd`
+		 -lm \
+		 -lGLESv2 \
+		 -lEGL \
+		 -lopenmaxil \
+		 -lbcm_host \
+		 -lvcos \
+		 -lvchiq_arm \
+		 -lkhrn_client \
+		 -lvchostif \
+		 -lvcilcs \
+		 -lvcfiled_check \
+		 -lnanovg \
+		 -ljpeg \
+		 -lrt \
+		 -lm \
+		 -lbcm2835
+INCLUDES+=-I`pwd` -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux/ -I./lib -Isrc
 
 
 HEADER="\33[35m----------[\33[36;1m Stak: \33[0;33m$(BIN) \33[35m]----------\33[39m"
