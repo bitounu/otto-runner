@@ -43,7 +43,7 @@ build/%.o: %.c
 
 build/%.so: build/%.o $(API_EXTRA_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
+	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -pg $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
 	@$(STRIP) build/$(notdir $@)
 
 

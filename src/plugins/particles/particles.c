@@ -1,19 +1,14 @@
-#include <apis/composer/composer.h>
-#include <application/rpc/rpc.h>
 #include <lib/shapes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
 
 // prototypes
 int init();
 int shutdown();
 int update();
-const int WIDTH = 128;
-const int HEIGHT = 128;
 
-static struct stak_composer_gl_info_s gl_info;
+
 #define NUM_PARTICLES 50
 
 typedef struct particle {
@@ -51,11 +46,13 @@ void initParticles(int w, int h) {
         }
     }
 }
+
 void paintBG(int w, int h) {
 
     Fill(0, 0, 0, 1);
     Rect(0, 0, w, h);
 }
+
 void draw_particles(int w, int h) {
     int i;
     particle_t *p;
@@ -104,71 +101,20 @@ void draw_particles(int w, int h) {
 }
 
 int init() {
-    printf("Testing.\n");
-    bcm_host_init();
-
-    stak_rpc_init();
-
-    int context = stak_rpc_composer_create_gl_context(&gl_info, WIDTH, HEIGHT);
-    //printf("Layer: %i\n", gl_info->composer_layer);
-
-    // set up screen ratio
-    glViewport(0, 0, (GLsizei) WIDTH, (GLsizei) HEIGHT);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-
-    float ratio = (float)WIDTH / (float)HEIGHT;
-    glFrustumf(-ratio, ratio, -1.0f, 1.0f, 1.0f, 10.0f);
-
-    initParticles(WIDTH, HEIGHT);
-
-
-    printf("Display: %i\n", gl_info.egl_display);
-    printf("Surface: %i\n", gl_info.surface);
-    printf("Context: %i\n", gl_info.context);
-
+    initParticles(96, 96);
     return 0;
 }
 
 int shutdown() {
-    printf("Shutting down...\n");
-	uint32_t error = vgGetError();
-    if( error != VG_NO_ERROR ) {
-    	printf("VG Error occurred: %i\n", error);
-        return -1;
-    }
-    error = eglGetError();
-    if(error != EGL_SUCCESS) {
-	   	printf("EGL Error occurred %i\n", error);
-	    return -1;
-	}
-	stak_rpc_composer_destroy_gl_context( &gl_info );
     return 0;
 }
 
 
 int update() {
-    eglSwapBuffers( gl_info.egl_display, gl_info.surface );
-	float clearColor[4] = {1,1,1,1};
-	vgSetfv(VG_CLEAR_COLOR, 4, clearColor);
-	vgClear(0, 0, WIDTH, HEIGHT);
-	vgLoadIdentity();
-
-    uint32_t error = vgGetError();
-    if( error != VG_NO_ERROR ) {
-        printf("VG Error occurred: %i\n", error);
-        return -1;
-    }
-    error = eglGetError();
-    if(error != EGL_SUCCESS) {
-        printf("EGL Error occurred %i\n", error);
-        return -1;
-    }
-
-    Start(WIDTH, HEIGHT);
-    draw_particles(WIDTH, HEIGHT);
-    vgFlush();
-    
+    Start(96,96);
+    draw_particles(96,96);
+    Fill(255, 255, 255, 0.75);
+    TextMid(96 / 2, 96 * 0.6, "OT", MonoTypeface, 96 / 8);
+    TextMid(96 / 2, 96 * 0.8, "TO", MonoTypeface, 96 / 8);
     return 0;
 }

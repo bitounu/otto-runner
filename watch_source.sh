@@ -17,12 +17,12 @@ fi
 		extension="${filename##*.}"
 		if [ "$extension" == "c" ]; then
 			make
-			if [ `uname` == "Darwin" ]; then
+			#if [ `uname` == "Darwin" ]; then
 				#ssh -i $IDENTITY vagrant@$IP  -o "ForwardAgent yes" "cd ~/otto-sdk/ ; make"
 				#if [ -n $RPI ]; then
 				#	scp -c blowfish vagrant@$IP:build/main vagrant@$IP:build/test.so build/ipc.so 
 				#fi
-			fi
+			#fi
 		fi
 	done
 
