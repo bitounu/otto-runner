@@ -5,8 +5,6 @@ endif
 LDFLAGS+=-L/opt/vc/lib/ \
 		 -lpthread \
 		 -ldl \
-		 -lrt \
-		 -lm \
 		 -lGLESv2 \
 		 -lEGL \
 		 -lopenmaxil \
@@ -17,7 +15,6 @@ LDFLAGS+=-L/opt/vc/lib/ \
 		 -lvchostif \
 		 -lvcilcs \
 		 -lvcfiled_check \
-		 -lnanovg \
 		 -ljpeg \
 		 -lrt \
 		 -lm \

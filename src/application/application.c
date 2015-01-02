@@ -17,7 +17,10 @@
 #include <pthread.h>
 #include <sched.h>
 
-#if 0
+
+#define DISPLAY_CODE_ENABLE 1
+
+#if DISPLAY_CODE_ENABLE
 #include <bcm2835.h>
 
 #include <lib/DejaVuSans.inc>                  // font data
@@ -26,19 +29,18 @@
 #include <lib/shapes.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-#include <daemons/input/input.h>
 
 #endif
 
 #define max(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
+({ __typeof__ (a) _a = (a); \
+ __typeof__ (b) _b = (b); \
+ _a > _b ? _a : _b; })
 
 #define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
+({ __typeof__ (a) _a = (a); \
+ __typeof__ (b) _b = (b); \
+ _a < _b ? _a : _b; })
 
 static volatile sig_atomic_t terminate;
 static void *lib_handle;
@@ -96,7 +98,7 @@ void* stak_application_hal_thread(void* arg) {
     
     while(!terminate) {
         current_time = stak_core_get_time();
-#if 0
+#if DISPLAY_CODE_ENABLE
         stak_seps114a_update(application->display);
 #endif
 
@@ -112,11 +114,9 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     application->state_machine = stak_state_machine_create( 32 );
     application->plugin_name = malloc( strlen( plugin_name ) + 1 );
     strcpy( application->plugin_name, plugin_name );
-#if 0
+#if DISPLAY_CODE_ENABLE
     application->display = stak_seps114a_create();
     application->canvas = stak_canvas_create(STAK_CANVAS_OFFSCREEN, 96, 96);
-
-    stak_input_init();
 
     if(!bcm2835_init()) {
         printf("Failed to init BCM2835 library.\n");
@@ -132,7 +132,7 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     pthread_setschedparam(application->thread_hal_update, SCHED_FIFO, &params);
     #endif
 
-#if 0
+#if DISPLAY_CODE_ENABLE
     // set up screen ratio
     glViewport(0, 0, (GLsizei) 96, (GLsizei) 96);
 
@@ -143,25 +143,25 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     glFrustumf(-ratio, ratio, -1.0f, 1.0f, 1.0f, 10.0f);
 
     SansTypeface = loadfont(DejaVuSans_glyphPoints,
-                DejaVuSans_glyphPointIndices,
-                DejaVuSans_glyphInstructions,
-                DejaVuSans_glyphInstructionIndices,
-                DejaVuSans_glyphInstructionCounts,
-                DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
+        DejaVuSans_glyphPointIndices,
+        DejaVuSans_glyphInstructions,
+        DejaVuSans_glyphInstructionIndices,
+        DejaVuSans_glyphInstructionCounts,
+        DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
 
     SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
-                DejaVuSerif_glyphPointIndices,
-                DejaVuSerif_glyphInstructions,
-                DejaVuSerif_glyphInstructionIndices,
-                DejaVuSerif_glyphInstructionCounts,
-                DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
+        DejaVuSerif_glyphPointIndices,
+        DejaVuSerif_glyphInstructions,
+        DejaVuSerif_glyphInstructionIndices,
+        DejaVuSerif_glyphInstructionCounts,
+        DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
 
     MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
-                DejaVuSansMono_glyphPointIndices,
-                DejaVuSansMono_glyphInstructions,
-                DejaVuSansMono_glyphInstructionIndices,
-                DejaVuSansMono_glyphInstructionCounts,
-                DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
+        DejaVuSansMono_glyphPointIndices,
+        DejaVuSansMono_glyphInstructions,
+        DejaVuSansMono_glyphInstructionIndices,
+        DejaVuSansMono_glyphInstructionCounts,
+        DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
 #endif
     struct stak_state_s app_state;
 
@@ -179,7 +179,7 @@ int stak_application_destroy(struct stak_application_s* application) {
 
     stak_state_machine_destroy(application->state_machine);
 
-#if 0
+#if DISPLAY_CODE_ENABLE
     stak_canvas_destroy(application->canvas);
     stak_seps114a_destroy(application->display);
 #endif
@@ -240,7 +240,7 @@ int stak_application_run(struct stak_application_s* application) {
 
 
         stak_state_machine_run(application->state_machine);
-#if 0
+#if DISPLAY_CODE_ENABLE
         stak_canvas_swap(application->canvas);
         stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
         #ifndef STAK_USE_THREADING

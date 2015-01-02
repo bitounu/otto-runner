@@ -2,14 +2,14 @@
 #define STAK_APPLICATION_H
 #include <application/state/state.h>
 #include <pthread.h>
-#if 0
+#if 1
 	#include <graphics/canvas/canvas.h>
 	#include <graphics/seps114a/seps114a.h>
 #endif
 struct stak_application_s{
 	struct stak_state_machine_s* state_machine;
 	char* plugin_name;
-#if 0
+#if 1
 	stak_canvas_s* canvas;
 	stak_seps114a_s* display;
 #endif

@@ -1,3 +1,21 @@
+
+libjpeg
+bcm2835
++ rpiuserland
+		 -lGLESv2 
+		 -lEGL 
+		 -lopenmaxil 
+		 -lbcm_host 
+		 -lvcos 
+		 -lvchiq_arm 
+		 -lkhrn_client 
+		 -lvchostif 
+		 -lvcilcs 
+		 -lvcfiled_check 
+
+
+
+
 # Stak API Specification
 This document defines the specification for the stak api design. It is requested that all public facing stak apis adhere to the standards defined in this document. Any discussion on api design change discussions belong in a github issue.
 
