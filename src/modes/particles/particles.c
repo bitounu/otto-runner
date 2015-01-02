@@ -1,4 +1,10 @@
+#include <assets/DejaVuSans.inc>                  // font data
+#include <assets/DejaVuSerif.inc>
+#include <assets/DejaVuSansMono.inc>
 #include <lib/libshapes/shapes.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <GLES/gl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -101,6 +107,35 @@ void draw_particles(int w, int h) {
 }
 
 int init() {
+    // set up screen ratio
+    glViewport(0, 0, (GLsizei) 96, (GLsizei) 96);
+
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+
+    float ratio = (float)96 / (float)96;
+    glFrustumf(-ratio, ratio, -1.0f, 1.0f, 1.0f, 10.0f);
+
+    SansTypeface = loadfont(DejaVuSans_glyphPoints,
+        DejaVuSans_glyphPointIndices,
+        DejaVuSans_glyphInstructions,
+        DejaVuSans_glyphInstructionIndices,
+        DejaVuSans_glyphInstructionCounts,
+        DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
+
+    SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
+        DejaVuSerif_glyphPointIndices,
+        DejaVuSerif_glyphInstructions,
+        DejaVuSerif_glyphInstructionIndices,
+        DejaVuSerif_glyphInstructionCounts,
+        DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
+
+    MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
+        DejaVuSansMono_glyphPointIndices,
+        DejaVuSansMono_glyphInstructions,
+        DejaVuSansMono_glyphInstructionIndices,
+        DejaVuSansMono_glyphInstructionCounts,
+        DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
     initParticles(96, 96);
     return 0;
 }
