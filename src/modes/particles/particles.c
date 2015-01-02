@@ -1,4 +1,4 @@
-#include <lib/shapes.h>
+#include <lib/libshapes/shapes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

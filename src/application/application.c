@@ -1,5 +1,4 @@
 #include <application/application.h>
-#include <core/core.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -17,33 +16,22 @@
 #include <pthread.h>
 #include <sched.h>
 
-
-#define DISPLAY_CODE_ENABLE 1
-
-#if DISPLAY_CODE_ENABLE
 #include <bcm2835.h>
-
-#include <lib/DejaVuSans.inc>                  // font data
-#include <lib/DejaVuSerif.inc>
-#include <lib/DejaVuSansMono.inc>
-#include <lib/shapes.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-
-#endif
-
-#define max(a,b) \
-({ __typeof__ (a) _a = (a); \
- __typeof__ (b) _b = (b); \
- _a > _b ? _a : _b; })
-
-#define min(a,b) \
-({ __typeof__ (a) _a = (a); \
- __typeof__ (b) _b = (b); \
- _a < _b ? _a : _b; })
 
 static volatile sig_atomic_t terminate;
 static void *lib_handle;
+
+struct stak_state_s{
+    int (*init)();
+    int (*update)();
+    int (*shutdown)();
+};
+
+static struct stak_state_s app_state;
+
+//
+// lib_open
+//
 int lib_open(char* plugin_name, struct stak_state_s* app_state) {
     char *error;
 
@@ -73,6 +61,9 @@ int lib_open(char* plugin_name, struct stak_state_s* app_state) {
     return 0;
 }
 
+//
+// lib_close
+//
 int lib_close(struct stak_state_s* app_state) {
     if (!lib_handle) {
         printf("No library loaded\n");
@@ -81,40 +72,34 @@ int lib_close(struct stak_state_s* app_state) {
     return 0;
 }
 
-//#define STAK_USE_THREADING
+//
+// stak_core_get_time
+//
+uint64_t stak_core_get_time() {
+    struct timespec timer;
+    clock_gettime(CLOCK_MONOTONIC, &timer);
+    return (uint64_t) (timer.tv_sec) * 1000000L + timer.tv_nsec / 1000L;
+}
 
-// SIGINT signal handler
+//
+// stak_application_terminate_cb
+//
 void stak_application_terminate_cb(int signum)
 {
     printf("Terminating...\n");
     terminate = 1;
 }
-#ifdef STAK_USE_THREADING
-void* stak_application_hal_thread(void* arg) {
 
-    struct stak_application_s* application = (struct stak_application_s*)arg;
-    uint64_t last_time, current_time, start_time, delta_time;
-    delta_time = start_time = last_time = current_time = stak_core_get_time();
-    
-    while(!terminate) {
-        current_time = stak_core_get_time();
-#if DISPLAY_CODE_ENABLE
-        stak_seps114a_update(application->display);
-#endif
-
-        delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
-        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
-    }
-    return 0;
-}
-#endif
+//
+// stak_application_create
+//
 struct stak_application_s* stak_application_create(char* plugin_name) {
+
     struct stak_application_s* application = calloc(1, sizeof(struct stak_application_s));
-    application->state_machine = stak_state_machine_create( 32 );
     application->plugin_name = malloc( strlen( plugin_name ) + 1 );
     strcpy( application->plugin_name, plugin_name );
-#if DISPLAY_CODE_ENABLE
+
+#if STAK_ENABLE_SEPS114A
     application->display = stak_seps114a_create();
     application->canvas = stak_canvas_create(STAK_CANVAS_OFFSCREEN, 96, 96);
 
@@ -124,62 +109,19 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
         return 0;
     }
 #endif
-    #ifdef STAK_USE_THREADING
-    pthread_create(&application->thread_hal_update, NULL, stak_application_hal_thread, application);
-
-    struct sched_param params;
-    params.sched_priority = 1;
-    pthread_setschedparam(application->thread_hal_update, SCHED_FIFO, &params);
-    #endif
-
-#if DISPLAY_CODE_ENABLE
-    // set up screen ratio
-    glViewport(0, 0, (GLsizei) 96, (GLsizei) 96);
-
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-
-    float ratio = (float)96 / (float)96;
-    glFrustumf(-ratio, ratio, -1.0f, 1.0f, 1.0f, 10.0f);
-
-    SansTypeface = loadfont(DejaVuSans_glyphPoints,
-        DejaVuSans_glyphPointIndices,
-        DejaVuSans_glyphInstructions,
-        DejaVuSans_glyphInstructionIndices,
-        DejaVuSans_glyphInstructionCounts,
-        DejaVuSans_glyphAdvances, DejaVuSans_characterMap, DejaVuSans_glyphCount);
-
-    SerifTypeface = loadfont(DejaVuSerif_glyphPoints,
-        DejaVuSerif_glyphPointIndices,
-        DejaVuSerif_glyphInstructions,
-        DejaVuSerif_glyphInstructionIndices,
-        DejaVuSerif_glyphInstructionCounts,
-        DejaVuSerif_glyphAdvances, DejaVuSerif_characterMap, DejaVuSerif_glyphCount);
-
-    MonoTypeface = loadfont(DejaVuSansMono_glyphPoints,
-        DejaVuSansMono_glyphPointIndices,
-        DejaVuSansMono_glyphInstructions,
-        DejaVuSansMono_glyphInstructionIndices,
-        DejaVuSansMono_glyphInstructionCounts,
-        DejaVuSansMono_glyphAdvances, DejaVuSansMono_characterMap, DejaVuSansMono_glyphCount);
-#endif
-    struct stak_state_s app_state;
 
     lib_open(application->plugin_name, &app_state);
-    stak_state_machine_push(application->state_machine, &app_state);
+    app_state.init();
     return application;
 }
+
+//
+// stak_application_destroy
+//
 int stak_application_destroy(struct stak_application_s* application) {
-    #ifdef STAK_USE_THREADING
-    if(pthread_join(application->thread_hal_update, NULL)) {
-        fprintf(stderr, "Error joining thread\n");
-        return -1;
-    }
-    #endif
+    app_state.shutdown();
 
-    stak_state_machine_destroy(application->state_machine);
-
-#if DISPLAY_CODE_ENABLE
+#if STAK_ENABLE_SEPS114A
     stak_canvas_destroy(application->canvas);
     stak_seps114a_destroy(application->display);
 #endif
@@ -190,6 +132,9 @@ int stak_application_destroy(struct stak_application_s* application) {
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
+//
+// stak_application_run
+//
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
     int lib_fd = inotify_init();
@@ -222,7 +167,6 @@ int stak_application_run(struct stak_application_s* application) {
     int frames_this_second = 0;
     int frames_per_second = 0;
     while(!terminate) {
-        //stak_state_machine_top(application->state_machine, current_state);
         frames_this_second++;
         current_time = stak_core_get_time();
 
@@ -232,15 +176,12 @@ int stak_application_run(struct stak_application_s* application) {
             frames_per_second = frames_per_second;
             frames_this_second = 0;
             last_time = current_time;
-#if 0
-            stak_rpc_get_state(frames_per_second);
-#endif
-            //printf("FPS: %i\n", frames_per_second);
+            printf("FPS: %i\n", frames_per_second);
         }
 
+        app_state.update();
 
-        stak_state_machine_run(application->state_machine);
-#if DISPLAY_CODE_ENABLE
+#if STAK_ENABLE_SEPS114A
         stak_canvas_swap(application->canvas);
         stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
         #ifndef STAK_USE_THREADING
@@ -261,7 +202,6 @@ int stak_application_run(struct stak_application_s* application) {
             strcpy(plugin_file_name, application->plugin_name + start_pos);
         }
 
-
         // read inotify buffer to see if library has been modified
         lib_read_length = read( lib_fd, lib_notify_buffer, BUF_LEN );
         if (( lib_read_length < 0 ) && ( errno == EAGAIN)){
@@ -270,17 +210,12 @@ int stak_application_run(struct stak_application_s* application) {
             int i = 0;
             while ( i < lib_read_length ) {
                 struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
-                //if ( event->len ) {
                 if ( event->mask & IN_CLOSE_WRITE ) {
                     if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
-                        struct stak_state_s app_state;
-                        stak_state_machine_pop(application->state_machine, &app_state);
+                        app_state.shutdown();
                         lib_close(&app_state);
                         lib_open(application->plugin_name, &app_state);
-                        stak_state_machine_push(application->state_machine, &app_state);
-                    }
-                    else {
-                        //printf("File %s changed while waiting for %s\n", event->name, plugin_file_name);
+                        app_state.init();
                     }
                 }
                 i += EVENT_SIZE + event->len;
@@ -293,6 +228,9 @@ int stak_application_run(struct stak_application_s* application) {
     return 0;
 }
 
+//
+// stak_application_terminate
+//
 int stak_application_terminate() {
     terminate = 1;
     return 0;

@@ -1,15 +1,19 @@
 #ifndef STAK_APPLICATION_H
 #define STAK_APPLICATION_H
-#include <application/state/state.h>
 #include <pthread.h>
-#if 1
+
+#define STAK_ENABLE_SEPS114A 1
+
+
+#if STAK_ENABLE_SEPS114A
 	#include <graphics/canvas/canvas.h>
 	#include <graphics/seps114a/seps114a.h>
 #endif
+
 struct stak_application_s{
 	struct stak_state_machine_s* state_machine;
 	char* plugin_name;
-#if 1
+#if STAK_ENABLE_SEPS114A
 	stak_canvas_s* canvas;
 	stak_seps114a_s* display;
 #endif
@@ -19,4 +23,19 @@ struct stak_application_s* stak_application_create(char* plugin_name);
 int stak_application_destroy();
 int stak_application_run();
 int stak_application_terminate();
+
+uint64_t stak_core_get_time();
+
+
+#define max(a,b) \
+({ __typeof__ (a) _a = (a); \
+ __typeof__ (b) _b = (b); \
+ _a > _b ? _a : _b; })
+
+#define min(a,b) \
+({ __typeof__ (a) _a = (a); \
+ __typeof__ (b) _b = (b); \
+ _a < _b ? _a : _b; })
+
+
 #endif

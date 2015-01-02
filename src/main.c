@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
     	application = stak_application_create(argv[1]);
 	}
 	else {
-    	application = stak_application_create("./test.so");
+    	application = stak_application_create("./ces.so");
 	}
     stak_application_run(application);
     stak_application_destroy(application);
