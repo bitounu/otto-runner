@@ -145,7 +145,7 @@ int stak_application_run(struct stak_application_s* application) {
         perror( "inotify_init" );
         return -1;
     }
-    lib_wd = inotify_add_watch( lib_fd, "./", IN_CLOSE_WRITE );
+    lib_wd = inotify_add_watch( lib_fd, "./build/", IN_CLOSE_WRITE );
     if( lib_wd < 0 ) {
         perror( "inotify_add_watch" );
         return -1;
@@ -184,9 +184,7 @@ int stak_application_run(struct stak_application_s* application) {
 #if STAK_ENABLE_SEPS114A
         stak_canvas_swap(application->canvas);
         stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
-        #ifndef STAK_USE_THREADING
         stak_seps114a_update(application->display);
-        #endif
 #endif
 
         delta_time = (stak_core_get_time() - current_time);
@@ -208,7 +206,7 @@ int stak_application_run(struct stak_application_s* application) {
         }
         else if(lib_read_length >= 0) {
             int i = 0;
-            while ( i < lib_read_length ) {
+            //while ( i < lib_read_length ) {
                 struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
                 if ( event->mask & IN_CLOSE_WRITE ) {
                     if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
@@ -219,7 +217,7 @@ int stak_application_run(struct stak_application_s* application) {
                     }
                 }
                 i += EVENT_SIZE + event->len;
-            }
+            //}
         }
         else {
             perror( "read" );

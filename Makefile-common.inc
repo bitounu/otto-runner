@@ -18,7 +18,10 @@ LDFLAGS+=-L/opt/vc/lib/ \
 		 -ljpeg \
 		 -lrt \
 		 -lm \
-		 -lbcm2835
+		 -lbcm2835 \
+		 -lmmal \
+		 -lmmal_core \
+		 -lmmal_util
 INCLUDES+=-I`pwd` -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux/ -I./lib -I./src -I./assets
 
 
