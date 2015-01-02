@@ -184,9 +184,7 @@ int stak_application_run(struct stak_application_s* application) {
 #if STAK_ENABLE_SEPS114A
         stak_canvas_swap(application->canvas);
         stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
-        #ifndef STAK_USE_THREADING
         stak_seps114a_update(application->display);
-        #endif
 #endif
 
         delta_time = (stak_core_get_time() - current_time);
