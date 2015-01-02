@@ -38,7 +38,8 @@ MAIN_SRCS=		src/main.c \
 				src/application/application.c \
 				lib/graphics/canvas/canvas.c \
 				lib/graphics/seps114a/seps114a.c \
-				lib/libshapes/libshapes.c
+				lib/libshapes/libshapes.c \
+				lib/gifsave89/gifsave89.c
 
 API_SRCS=		$(MODES)
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
