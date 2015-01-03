@@ -10,7 +10,7 @@ Building(on Pi)
 make  
 sudo build/main build/particles.so  
 
-sudo build/main build/<mode name>.so  
+sudo build/main build/&lt;mode name&gt;.so  
 
 Dependencies
 ------------
