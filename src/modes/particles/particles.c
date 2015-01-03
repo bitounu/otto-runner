@@ -145,6 +145,10 @@ int shutdown() {
 }
 
 
+int rotary_changed(int delta) {
+    printf("Rotary changed: %i\n", delta);
+    return 0;
+}
 int update() {
     Start(96,96);
     draw_particles(96,96);

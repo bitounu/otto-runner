@@ -25,9 +25,22 @@ struct stak_state_s{
     int (*init)();
     int (*update)();
     int (*shutdown)();
+    int (*update_display) (char*, int, int, int);
+    int (*rotary_changed) (int delta);
 };
 
 static struct stak_state_s app_state;
+
+
+const int pin_rotary_button = 17;
+const int pin_rotary_a = 15;
+const int pin_rotary_b = 14;
+
+int value_shutter = LOW;
+int value_rotary_left = LOW;
+int value_rotary_right = LOW;
+int rotary_switch_State = 1;
+volatile int last_encoded_value = 0, encoder_value = 0;
 
 //
 // lib_open
@@ -49,8 +62,15 @@ int lib_open(char* plugin_name, struct stak_state_s* app_state) {
     }
     app_state->update = dlsym(lib_handle, "update");
     if ((error = dlerror()) != NULL)  {
-        fputs(error, stderr);
-        exit(1);
+        app_state->update_display = 0;
+    }
+    app_state->update_display = dlsym(lib_handle, "update_display");
+    if ((error = dlerror()) != NULL)  {
+        app_state->update_display = 0;
+    }
+    app_state->rotary_changed = dlsym(lib_handle, "rotary_changed");
+    if ((error = dlerror()) != NULL)  {
+        app_state->rotary_changed = 0;
     }
     app_state->shutdown = dlsym(lib_handle, "shutdown");
     if ((error = dlerror()) != NULL)  {
@@ -73,6 +93,36 @@ int lib_close(struct stak_state_s* app_state) {
 }
 
 //
+// update_encoder
+//
+void* update_encoder(void* arg) {
+    const int encoding_matrix[4][4] = {
+        { 0,-1, 1, 0},
+        { 1, 0, 0,-1},
+        {-1, 0, 0, 1},
+        { 0, 1,-1, 0}
+    };
+
+    uint64_t last_time, current_time, delta_time;
+    delta_time = last_time = current_time = stak_core_get_time();
+    while(!stak_application_get_is_terminating()) {
+        current_time = stak_core_get_time();
+
+        int encoded = (bcm2835_gpio_lev(pin_rotary_a) << 1)
+                     | bcm2835_gpio_lev(pin_rotary_b);
+
+        int change = encoding_matrix[last_encoded_value][encoded];
+        encoder_value += change;
+        last_encoded_value = encoded;
+
+        delta_time = (stak_core_get_time() - current_time);
+        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
+        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+    }
+    return 0;
+}
+
+//
 // stak_core_get_time
 //
 uint64_t stak_core_get_time() {
@@ -87,7 +137,7 @@ uint64_t stak_core_get_time() {
 void stak_application_terminate_cb(int signum)
 {
     printf("Terminating...\n");
-    terminate = 1;
+    stak_application_terminate();
 }
 
 //
@@ -111,7 +161,9 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
 #endif
 
     lib_open(application->plugin_name, &app_state);
-    app_state.init();
+    if(app_state.init) {
+        app_state.init();
+    }
     return application;
 }
 
@@ -119,8 +171,15 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
 // stak_application_destroy
 //
 int stak_application_destroy(struct stak_application_s* application) {
-    app_state.shutdown();
+    // if shutdown method exists, run it
+    if(app_state.shutdown) {
+        app_state.shutdown();
+    }
 
+    if(pthread_join(application->thread_hal_update, NULL)) {
+        fprintf(stderr, "Error joining thread\n");
+        return -1;
+    }
 #if STAK_ENABLE_SEPS114A
     stak_canvas_destroy(application->canvas);
     stak_seps114a_destroy(application->display);
@@ -158,6 +217,8 @@ int stak_application_run(struct stak_application_s* application) {
 
     }
 
+    pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
+
         // setup sigterm handler
     action.sa_handler = stak_application_terminate_cb;
     sigaction(SIGINT, &action, NULL);
@@ -166,6 +227,7 @@ int stak_application_run(struct stak_application_s* application) {
     delta_time = last_time = current_time = stak_core_get_time();
     int frames_this_second = 0;
     int frames_per_second = 0;
+    int rotary_last_value = 0;
     while(!terminate) {
         frames_this_second++;
         current_time = stak_core_get_time();
@@ -179,11 +241,24 @@ int stak_application_run(struct stak_application_s* application) {
             printf("FPS: %i\n", frames_per_second);
         }
 
-        app_state.update();
+        if(app_state.rotary_changed) {
+            if(rotary_last_value != encoder_value) {
+                app_state.rotary_changed(rotary_last_value - encoder_value);
+                rotary_last_value = encoder_value;
+            }
+        }
+
+        if(app_state.update) {
+            app_state.update();
+        }
 
 #if STAK_ENABLE_SEPS114A
-        stak_canvas_swap(application->canvas);
-        stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
+        if(app_state.update_display) {
+            app_state.update_display(application->display->framebuffer, 16, 2, 2);
+        } else {
+            stak_canvas_swap(application->canvas);
+            stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
+        }
         stak_seps114a_update(application->display);
 #endif
 
@@ -210,10 +285,20 @@ int stak_application_run(struct stak_application_s* application) {
                 struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
                 if ( event->mask & IN_CLOSE_WRITE ) {
                     if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
-                        app_state.shutdown();
+                        
+                        // if shutdown method exists, run it
+                        if(app_state.shutdown) {
+                            app_state.shutdown();
+                        }
+                        
+                        // close currently open lib and reload it
                         lib_close(&app_state);
                         lib_open(application->plugin_name, &app_state);
-                        app_state.init();
+
+                        // if init method exists, run it
+                        if(app_state.init) {
+                            app_state.init();
+                        }
                     }
                 }
                 i += EVENT_SIZE + event->len;
@@ -232,4 +317,10 @@ int stak_application_run(struct stak_application_s* application) {
 int stak_application_terminate() {
     terminate = 1;
     return 0;
+}
+//
+// stak_application_terminate
+//
+int stak_application_get_is_terminating() {
+    return terminate;
 }
