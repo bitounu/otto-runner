@@ -23,8 +23,11 @@ struct stak_application_s* stak_application_create(char* plugin_name);
 int stak_application_destroy();
 int stak_application_run();
 int stak_application_terminate();
+int stak_application_get_is_terminating();
 
 uint64_t stak_core_get_time();
+
+int stak_get_rotary_value();
 
 
 #define max(a,b) \
