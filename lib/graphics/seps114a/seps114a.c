@@ -140,7 +140,7 @@ stak_seps114a_s* stak_seps114a_create() {
     // Set Oscillator operation
     stak_seps114a_write_command_value(device, SEPS114A_ANALOG_CONTROL,0x00);          // using external resistor and internal OSC
     // Set frame rate
-    stak_seps114a_write_command_value(device, SEPS114A_OSC_ADJUST,0x03);              // frame rate : 95Hz
+    stak_seps114a_write_command_value(device, SEPS114A_OSC_ADJUST,0x00);              // frame rate : 95Hz
     // Set active display area of panel
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_X1,0x00);
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_X2,0x5F);
@@ -156,14 +156,17 @@ stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_write_command_value(device, SEPS114A_CPU_IF,0x00);                 // MPU External interface mode, 8bits
     // Set Memory Read/Write mode
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
+
+#if 0
     // Set row scan direction
     stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_DIRECTION,0x00);     // Column : 0 --> Max, Row : 0 --> Max
     // Set row scan mode
     stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_MODE,0x00);          // Alternate scan mode
+#endif
     // Set column current
-    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_R,0x6E);
-    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_G,0x4F);
-    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_B,0x77);
+    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_R,0xF0);
+    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_G,0xF0);
+    stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_B,0xF0);
     // Set row overlap
     stak_seps114a_write_command_value(device, SEPS114A_ROW_OVERLAP,0x00);            // Band gap only
     // Set discharge time
@@ -175,13 +178,13 @@ stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_write_command_value(device, SEPS114A_PEAK_PULSE_WIDTH_G,0x02);
     stak_seps114a_write_command_value(device, SEPS114A_PEAK_PULSE_WIDTH_B,0x02);
     // Set precharge current
-    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_R,0x14);
-    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_G,0x50);
-    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_B,0x19);
+    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_R,0x80);
+    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_G,0x80);
+    stak_seps114a_write_command_value(device, SEPS114A_PRECHARGE_CURRENT_B,0x80);
     // Set row scan on/off 
     stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_ON_OFF,0x00);        // Normal row scan
     // Set scan off level
-    stak_seps114a_write_command_value(device, SEPS114A_SCAN_OFF_LEVEL,0x04);         // VCC_C*0.75
+    stak_seps114a_write_command_value(device, SEPS114A_SCAN_OFF_LEVEL,0x00);         // VCC_C*0.75
     // Set memory access point
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x01);
@@ -260,6 +263,8 @@ int stak_seps114a_update(stak_seps114a_s* device) {
     uint16_t *vmem16 = (uint16_t *)device->framebuffer;
     int x, y;
 
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
     stak_seps114a_write_command(device, SEPS114A_DDRAM_DATA_ACCESS_PORT);
 
     for (x = 0; x < 96; x++) {
