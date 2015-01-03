@@ -1,8 +1,12 @@
-CFLAGS+= -Wall -fPIC -I./src
+CFLAGS+=-Wall -fPIC -I./src -DSTANDALONE -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS \
+		-DTARGET_POSIX -D_LINUX -DPIC -D_REENTRANT -D_LARGEFILE64_SOURCE \
+		-D_FILE_OFFSET_BITS=64 -U_FORTIFY_SOURCE -DHAVE_LIBOPENMAX=2 -DOMX \
+		-DOMX_SKIP64BIT -DUSE_EXTERNAL_OMX -DHAVE_LIBBCM_HOST \
+		-DUSE_EXTERNAL_LIBBCM_HOST -DUSE_VCHIQ_ARM
 ifdef PREFIX
 	CFLAGS+=--sysroot=$(PREFIX) -I$(PREFIX)/include
 endif
-LDFLAGS+=-L/opt/vc/lib/ \
+LDFLAGS+=-L/opt/vc/lib/ -L./lib \
 		 -lpthread \
 		 -ldl \
 		 -lGLESv2 \
@@ -22,7 +26,14 @@ LDFLAGS+=-L/opt/vc/lib/ \
 		 -lmmal \
 		 -lmmal_core \
 		 -lmmal_util
-INCLUDES+=-I`pwd` -I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux/ -I./lib -I./src -I./assets
+INCLUDES+=-I`pwd` -I/opt/vc/include \
+		 -I/opt/vc/include/interface/vcos/pthreads \
+		 -I/opt/vc/include/interface/vmcs_host/linux/ \
+		 -I./lib \
+		 -I./lib/gifsicle/include \
+		 -I./lib/gifsicle/include \
+		 -I./src \
+		 -I./assets
 
 
 HEADER="\33[35m----------[\33[36;1m Stak: \33[0;33m$(BIN) \33[35m]----------\33[39m"
@@ -42,7 +53,19 @@ MAIN_SRCS=		src/main.c \
 				lib/graphics/canvas/canvas.c \
 				lib/graphics/seps114a/seps114a.c \
 				lib/libshapes/libshapes.c \
-				lib/gifsave89/gifsave89.c
+				lib/gifsave89/gifsave89.c \
+				lib/raspberrypi-omxcam/src/camera.c \
+				lib/raspberrypi-omxcam/src/video.c \
+				lib/raspberrypi-omxcam/src/core.c \
+				lib/raspberrypi-omxcam/src/still.c \
+				lib/raspberrypi-omxcam/src/utils.c \
+				lib/raspberrypi-omxcam/src/version.c \
+				lib/raspberrypi-omxcam/src/event.c \
+				lib/raspberrypi-omxcam/src/error.c \
+				lib/raspberrypi-omxcam/src/h264.c \
+				lib/raspberrypi-omxcam/src/dump_omx.c \
+				lib/raspberrypi-omxcam/src/debug.c \
+				lib/raspberrypi-omxcam/src/jpeg.c
 
 API_SRCS=		$(MODES)
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
@@ -66,13 +89,13 @@ build/%.o: %.c
 build/%.so: build/%.o $(API_EXTRA_OBJS)
 	@echo $(BUILDING_DL)
 	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -pg $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
-	@$(STRIP) build/$(notdir $@)
+	# @$(STRIP) build/$(notdir $@)
 
 
 $(MAIN_BIN): $(MAIN_OBJS)
 	@echo $(BUILDING_DL)
 	@$(CC)  -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
-	@$(STRIP) $@
+	# @$(STRIP) $@
 
 %.a: $(MAIN_OBJS)
 	@$(AR) r $@ $<
