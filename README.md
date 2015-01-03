@@ -4,6 +4,14 @@ For Ubuntu 14.04LTS
 
 Vagrant Build Image - <tbd>
 
+
+Building(on Pi)
+-------
+make  
+sudo build/main build/particles.so  
+
+sudo build/main build/<mode name>.so  
+
 Dependencies
 ------------
 build-essential inotify-tools
