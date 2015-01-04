@@ -278,7 +278,6 @@
                   pin@p21 { function = "output"; termination = "no_pulling"; };
                   pin@p6  { function = "output"; termination = "no_pulling"; };
                   pin@p20 { function = "output"; termination = "no_pulling"; };
-                  pin@p16 { function = "input";  termination = "pull_up";    };
                   pin@p14 { function = "uart0";  termination = "no_pulling"; }; // TX uart0
                   pin@p15 { function = "uart0";  termination = "pull_up";    }; // RX uart0
                   pin@p36 { function = "uart1";  termination = "no_pulling"; }; // TX uart1
