@@ -149,7 +149,7 @@ stak_seps114a_s* stak_seps114a_create() {
     // Set row scan direction
     stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_DIRECTION,0x00);     // Column : 0 --> Max, Row : 0 --> Max
     // Set row scan mode
-    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_MODE,0x01);          // Alternate scan mode
+    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_MODE,0x00);          // Alternate scan mode
 //#endif
     // Set column current
     stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_R,0xF0);
@@ -178,20 +178,20 @@ stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
     // Display ON
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
-    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x01);
     printf("Display enabled\n");
 
     device->framebuffer = NULL;
     //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
     //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
-    //memset(device->framebuffer, 0x33,96*96*2);
+    memset(device->framebuffer, 0x33, 96*96*2);
     return device;
 }
 inline uint16_t swap_rgb (uint16_t rgb)
 {
     return  (((rgb << 8) & 0xff00) |
-             ((rgb >> 8) & 0xff));
+             ((rgb >> 8) & 0x00ff));
 }
 inline int spi_write(stak_seps114a_s* device, uint8_t *data, int len) {
     struct spi_ioc_transfer spi ;
@@ -269,7 +269,7 @@ int stak_seps114a_update(stak_seps114a_s* device) {
     uint16_t *vmem16 = (uint16_t *)device->framebuffer;
     int x, y;
     for (y = 0; y < 96; y++) {
-        for (x = 0; x < 48; x++) {
+        for (x = 0; x < 96; x++) {
             vmem16[y*96+x] = swap_rgb(vmem16[y*96+x]);
         }
     }

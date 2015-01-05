@@ -1,6 +1,4 @@
 
-MODES=	src/modes/ces/ces.c \
-	src/modes/particles/particles.c \
-	src/modes/camera/camera.c
+MODES=	src/modes/ces/ces.c
 
 include Makefile-common.inc

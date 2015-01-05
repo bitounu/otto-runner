@@ -38,6 +38,7 @@ static struct stak_state_s app_state;
     extern int init();
     extern int shutdown();
     extern int update();
+    extern int rotary_changed(int);
 #endif
 
 
@@ -175,6 +176,7 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     app_state.init = init;
     app_state.shutdown = shutdown;
     app_state.update = update;
+    app_state.rotary_changed = rotary_changed;
 #endif
     if(app_state.init) {
         app_state.init();
@@ -274,14 +276,14 @@ int stak_application_run(struct stak_application_s* application) {
         if(app_state.update_display) {
             app_state.update_display( (uint8_t*) application->display->framebuffer, 16, 2, 2);
         } else {
-        #if 0
+    #if 1
             stak_canvas_swap(application->canvas);
             stak_canvas_copy(application->canvas, (uint8_t*)application->display->framebuffer, 96 * 2);
-        #endif
+    #endif
         }
-        #if 0
+    #if 1
         stak_seps114a_update(application->display);
-        #endif
+    #endif
 #endif
 
         delta_time = (stak_core_get_time() - current_time);
