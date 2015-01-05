@@ -9,9 +9,15 @@
 #include <GLES/gl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <dirent.h>
 
 const int pin_pwm = 18;
 const int pin_shutter = 16;
+#define BASE_DIRECTORY "/home/pi"
+#define FASTCAMD_DIR BASE_DIRECTORY "/otto-sdk/fastcmd/"
+#define GIF_TEMP_DIR BASE_DIRECTORY "/gif_temp/"
+#define OUTPUT_DIR BASE_DIRECTORY "/output/"
 
 int frame_count = 0;
 //
@@ -38,8 +44,9 @@ int get_shutter_pressed() {
 //
 int init() {
 
-    system("mkdir -p /home/pi/gif_temp/");
-    system("/home/pi/fastcmd/start_camd.sh");
+    system("mkdir -p " GIF_TEMP_DIR);
+    system("mkdir -p " OUTPUT_DIR);
+    system( FASTCAMD_DIR "start_camd.sh");
     frame_count = 0;
     // set up screen ratio
     glViewport(0, 0, (GLsizei) 96, (GLsizei) 96);
@@ -89,21 +96,54 @@ int init() {
 //
 //
 int shutdown() {
-    system("/home/pi/fastcmd/stop_camd.sh");
-    system("rm -Rf /home/pi/gif_temp/");
+    system( FASTCAMD_DIR "stop_camd.sh");
+    system("rm -Rf " GIF_TEMP_DIR);
     return 0;
 }
 
+int get_next_file_number() {
+    DIR *dirp;
+    struct dirent *dp;
+    int highest_number = 0;
+
+    dirp = opendir( OUTPUT_DIR );
+    while ((dp = readdir(dirp)) != NULL) {
+        char num_buffer[5];
+        char * pos = strstr ( dp->d_name, ".gif" );
+        int offset = (int) ( pos - dp->d_name );
+        int len = strlen( dp->d_name );
+        if ( ( pos ) &&
+             ( pos > dp->d_name + 4) &&
+             ( offset == ( len - 4 ) ) ) {
+            strncpy( num_buffer, pos - 4, 4 );
+            int number = atoi( num_buffer ) + 1;
+            if( number > highest_number ) highest_number = number;
+        }
+    }
+    closedir(dirp);
+    return highest_number;
+}
 
 int rotary_changed(int delta) {
-    if(delta < 0) {
+    static char system_string[1024];
+    if( (delta > 0) && (frame_count > 0) ) {
 
         bcm2835_pwm_set_data(0, 256);
         printf("creating image...\n");
-        system("gifsicle --colors 256 /home/pi/gif_temp/*.gif > /home/pi/gif.gif ; rm /home/pi/gif_temp/* ; chown pi:pi /home/pi/gif.gif");
-        printf("image created!\n");
+        
+        int file_number = get_next_file_number();
+        sprintf( system_string, "gifsicle --colors 256 " GIF_TEMP_DIR "*.gif > " OUTPUT_DIR "gif_%04i.gif ; rm " GIF_TEMP_DIR "* ; chown pi:pi " OUTPUT_DIR "$FNAME", file_number );
+        system( system_string );
         bcm2835_pwm_set_data(0, 0);
         frame_count = 0;
+    }
+    else if ( delta < 0 ) {
+        printf("capturing frame %i", frame_count);
+        bcm2835_pwm_set_data(0, 512);
+        system( FASTCAMD_DIR "do_capture.sh");
+        nanosleep((struct timespec[]){{0, 10000000L}}, NULL);
+        bcm2835_pwm_set_data(0, 0);
+        frame_count++;
     }
     return 0;
 }
@@ -121,14 +161,15 @@ int update() {
     VGfloat color[4] = { 0, 0, 0, 1 };
     vgSetfv(VG_CLEAR_COLOR, 4, color);
     vgClear(0, 0, 96, 96);
+    setfill(color);
+    setstroke(color);
+    StrokeWidth(0);
+    vgLoadIdentity();
+    Background(0, 0, 0);
     Fill(255,255,255,1);
-    TextMid(96 / 2, 96 * 0.6, string_buffer, SansTypeface, 96 / 7);
-    // if shutter button is pressed
-    if( get_shutter_pressed() ) {
-        // output
-        printf("capturing frame %i", frame_count);
-        system("/home/pi/fastcmd/do_capture.sh");
-        frame_count++;
-    }
+    Translate(48, 48);
+    TextMid(0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8);
+    Rotate(180);
+    TextMid(0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8);
     return 0;
 }
