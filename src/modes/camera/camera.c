@@ -22,7 +22,9 @@
 
 const int camera_width = 640;
 const int camera_height = 480;
+const int total_size = 640 * 480;
 
+PORT_USERDATA userdata;
 uint32_t* rgb_buffer, *gif_buffer;
 uint32_t* rgb_oled_buffer;
 GifWriter gif_writer;
@@ -52,7 +54,16 @@ int shutdown();
 int update();
 
 pthread_t thread_camera_update;
+struct rpi_camera_settings settings = {
+    .width = 640,
+    .height = 480,
+    .frame_rate = 60,
+    .num_levels = 3,
+    .do_argb_conversion = 1
+};
 
+struct rpi_camera* camera;
+#if 0
 void* camera_update_thread(void* arg) {
     
     uint64_t last_time, current_time;
@@ -61,19 +72,6 @@ void* camera_update_thread(void* arg) {
     int frames_per_second = 0;
     static uint32_t current = 0;
 
-    struct rpi_camera_settings settings = {
-        .width = camera_width,
-        .height = camera_height,
-        .frame_rate = 60,
-        .num_levels = 1,
-        .do_argb_conversion = 1
-    };
-
-    struct rpi_camera* camera;
-    camera = calloc( 1, sizeof( struct rpi_camera ) );
-    rpi_camera_create( camera, settings );
-    if ( !camera )
-        stak_application_terminate();
 
     while( !stak_application_get_is_terminating() ) {
         frames_this_second++;
@@ -86,7 +84,6 @@ void* camera_update_thread(void* arg) {
             last_time = current_time;
             stak_log("Camera FPS: %i", frames_per_second);
         }
-        int total_size = camera_width * camera_height;
         if( camera )
             if( !rpi_camera_read_frame( camera, 0 ,rgb_buffer, total_size * 4) )
                 printf("yay!\n");
@@ -101,13 +98,21 @@ void* camera_update_thread(void* arg) {
             current += omx_buffer.length/4;
         }*/
         //vgImageSubData(camera_image, rgb_buffer, camera_width*4, VG_sRGBA_8888, 0, 0, camera_width, camera_height);
-        current = 0;
+        //current = 0;
     }
     rpi_camera_destroy( camera );
     return 0;
 }
+#endif
 
 int init() {
+    
+    memset(&userdata, 0, sizeof (PORT_USERDATA));
+
+    userdata.width = VIDEO_WIDTH;
+    userdata.height = VIDEO_HEIGHT;
+    userdata.fps = 0.0;
+
      // set pin type
     bcm2835_gpio_fsel(pin_shutter, BCM2835_GPIO_FSEL_INPT);
     // set pin pull up/down status
@@ -120,19 +125,28 @@ int init() {
 
     //camera_image = vgCreateImage(VG_sRGBA_8888, camera_width, camera_height, VG_IMAGE_QUALITY_NONANTIALIASED);
 
+    camera = calloc( 1, sizeof( struct rpi_camera ) );
+    rpi_camera_create( camera, settings );
+    if ( !camera )
+        stak_application_terminate();
+#if 0
     pthread_create(&thread_camera_update, NULL, camera_update_thread, NULL);
 
     struct sched_param params;
     params.sched_priority = 1;
     pthread_setschedparam(thread_camera_update, SCHED_FIFO, &params);
+#endif
     return 0;
 }
 
 int shutdown() {
+#if 0
     if(pthread_join(thread_camera_update, NULL)) {
         fprintf(stderr, "Error joining thread\n");
         return -1;
     }
+#endif
+    rpi_camera_destroy( camera );
     GifEnd( &gif_writer );
     free(rgb_buffer);
     free(gif_buffer);
@@ -143,6 +157,8 @@ int shutdown() {
 
 int update() {
     Start(96,96);
+    if( camera )
+        rpi_camera_read_frame( camera, 0 ,rgb_buffer, total_size * 4);
     //Fill(255, 255, 255, 1);
     //Circle(0.0f, 0.0f, 32.0f);
     //vgLoadIdentity();

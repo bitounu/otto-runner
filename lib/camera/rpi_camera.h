@@ -78,14 +78,14 @@ struct rpi_camera {
 int rpi_camera_create( struct rpi_camera* camera, struct rpi_camera_settings settings );
 int rpi_camera_destroy( struct rpi_camera* camera );
 
-int rpi_camera_read_frame( struct rpi_camera* camera, int level, void* buffer, int buffer_size );
-int rpi_camera_read_frame_begin( struct rpi_camera* camera, int level, const void* out_buffer, int* out_buffer_size );
+int rpi_camera_read_frame( struct rpi_camera* camera, int level, void** buffer, int buffer_size );
+int rpi_camera_read_frame_begin( struct rpi_camera* camera, int level, void** out_buffer, int* out_buffer_size );
 int rpi_camera_read_frame_end( struct rpi_camera* camera, int level );
 
 int rpi_camera_output_create( struct rpi_camera_output* output, int width, int height, MMAL_COMPONENT_T* input_component, int input_port_idx, int do_argb_conversion );
 int rpi_camera_output_destroy( struct rpi_camera_output* output  );
-int rpi_camera_output_read_frame( struct rpi_camera_output* output, void* buffer, int buffer_size, int *out_buffer_size );
-int rpi_camera_output_read_frame_begin( struct rpi_camera_output* output, const void* out_buffer, int* out_buffer_size );
+int rpi_camera_output_read_frame( struct rpi_camera_output* output, void** buffer, int buffer_size, int *out_buffer_size );
+int rpi_camera_output_read_frame_begin( struct rpi_camera_output* output, void** out_buffer, int* out_buffer_size );
 int rpi_camera_output_read_frame_end( struct rpi_camera_output* output );
 int rpi_camera_output_create_resize_component( struct rpi_camera_output* output, MMAL_PORT_T* video_output_port, int do_argb_conversion );
 int rpi_camera_output_enable_port_callback_and_create_buffer_pool( struct rpi_camera_output* output, MMAL_PORT_T* port, MMAL_PORT_BH_CB_T cb, int buffer_count );

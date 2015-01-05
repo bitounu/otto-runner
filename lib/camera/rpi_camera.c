@@ -14,7 +14,7 @@ static void rpi_camera_control_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T 
 static void rpi_camera_video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEADER_T *buffer) {
 	struct rpi_camera_output* output = ( struct rpi_camera_output* ) port->userdata;
 	if ( !output )
-		return ; //stak_error_throw( "Output not initialized" );
+		return stak_error_throw( "Output not initialized" );
 
 	stak_log("camera: 0x%08x", (int) output);
 	//to handle the user not reading frames, remove and return any pre-existing ones
@@ -23,18 +23,22 @@ static void rpi_camera_video_buffer_callback(MMAL_PORT_T *port, MMAL_BUFFER_HEAD
 		MMAL_BUFFER_HEADER_T* existing_buffer = mmal_queue_get( output->output_queue );
 		if ( existing_buffer )
 		{
-		stak_log("","");
+		stak_log("%s","");
 			mmal_buffer_header_release( existing_buffer );
 			if ( port->is_enabled )
 			{
 				MMAL_BUFFER_HEADER_T *new_buffer;
+				MMAL_STATUS_T status;
 				new_buffer = mmal_queue_get( output->buffer_pool->queue );
-				if ( new_buffer || mmal_port_send_buffer( port, new_buffer ) != MMAL_SUCCESS )
-					return ; //stak_error_throw( "Unable to return a buffer to the video port" );
+				if ( new_buffer )
+					status = mmal_port_send_buffer(port, new_buffer);
+				if (!new_buffer || status != MMAL_SUCCESS)
+					return stak_error_throw( "Unable to return a buffer to the video port" );
 			}	
 		}
 	}
-	stak_log("","");
+	stak_log("Nothing put onto queue...%s", "");
+	stak_log("%s","");
 	//add the buffer to the output queue
 	mmal_queue_put( output->output_queue, buffer );
 }
@@ -92,7 +96,7 @@ int rpi_camera_output_create( struct rpi_camera_output* output, int width, int h
 	}
 
 	//setup the video buffer callback
-	rpi_camera_output_enable_port_callback_and_create_buffer_pool( output, output->buffer_port, rpi_camera_video_buffer_callback, 3);
+	rpi_camera_output_enable_port_callback_and_create_buffer_pool( output, output->buffer_port, rpi_camera_video_buffer_callback, 1);
 	// output->buffer_pool = EnablePortCallbackAndCreateBufferPool( output->buffer_pool, VideoBufferCallback, 3);
 	stak_log("buffer_pool: 0x%08x", (int) output->buffer_pool);
 	if( !output->buffer_pool )
@@ -112,32 +116,35 @@ int rpi_camera_output_destroy( struct rpi_camera_output* output ) {
 
 	return stak_error_none( );
 }
-int rpi_camera_output_read_frame( struct rpi_camera_output* output, void* buffer, int buffer_size, int *out_buffer_size ) {
+int rpi_camera_output_read_frame( struct rpi_camera_output* output, void** buffer, int buffer_size, int *out_buffer_size ) {
 	if ( !output )
 		return stak_error_throw( "Camera output not initialized" );
 
 	//get buffer
-	const void* new_buf = 0;
+	void* new_buf = 0;
 	int new_buffer_size = 0;
-	if( !rpi_camera_output_read_frame_begin( output, new_buf, &new_buffer_size ) )
+	if( !rpi_camera_output_read_frame_begin( output, &new_buf, &new_buffer_size ) )
 	{
 		if( buffer_size >= new_buffer_size )
 		{
 			//got space - copy it in and return size
 			memcpy( buffer, new_buf, new_buffer_size );
 			*out_buffer_size = new_buffer_size;
+			stak_log("copied buffer of %i bytes", new_buffer_size);
 		}
 		else
 		{
 			*out_buffer_size = 0;
+			stak_log("Not enough space in buffer for new frame %i", new_buffer_size);
 			return stak_error_throw( "Not enough space in buffer for new frame" ); //res = -1;
 		}
 		rpi_camera_output_read_frame_end( output );
 	}
+	// stak_log("Camera frame not read %i", new_buffer_size);
 	return stak_error_throw( "Camera frame not read" );
 }
 
-int rpi_camera_output_read_frame_begin( struct rpi_camera_output* output, const void* out_buffer, int* out_buffer_size ) {
+int rpi_camera_output_read_frame_begin( struct rpi_camera_output* output, void** out_buffer, int* out_buffer_size ) {
 	if ( !output )
 		return stak_error_throw( "Camera output not initialized" );
 
@@ -154,7 +161,7 @@ int rpi_camera_output_read_frame_begin( struct rpi_camera_output* output, const 
 		output->locked_buffer = buffer;
 
 		//fill out the output variables and return success
-		out_buffer = buffer->data;
+		*out_buffer = buffer->data;
 		*out_buffer_size = buffer->length;
 		return stak_error_none( );
 	}
@@ -256,45 +263,46 @@ int rpi_camera_output_enable_port_callback_and_create_buffer_pool( struct rpi_ca
 		return stak_error_throw( "Camera output not initialized" );
 
 	MMAL_STATUS_T status;
+	MMAL_POOL_T* buffer_pool = 0;
 
 	//setup video port buffer and a pool to hold them
 	port->buffer_num = buffer_count;
 	port->buffer_size = port->buffer_size_recommended;
-	// printf("Creating pool with %d buffers of size %d\n", port->buffer_num, port->buffer_size);
-	output->buffer_pool = mmal_port_pool_create(port, port->buffer_num, port->buffer_size);
-	if ( !output->buffer_pool ) {
-		if( output->buffer_pool ) mmal_port_pool_destroy( port, output->buffer_pool );
+	stak_log("Creating pool with %d buffers of size %d", port->buffer_num, port->buffer_size);
+	buffer_pool = mmal_port_pool_create(port, port->buffer_num, port->buffer_size);
+	if ( !buffer_pool ) {
+		if( buffer_pool ) mmal_port_pool_destroy( port, buffer_pool );
 		return stak_error_throw( "Couldn't create video buffer pool" );
 	}
 
 	//enable the port and hand it the callback
     port->userdata = (struct MMAL_PORT_USERDATA_T *)output;
-	status = mmal_port_enable(port, cb);
+	status = mmal_port_enable( port, cb );
 	if (status != MMAL_SUCCESS) {
-		if( output->buffer_pool ) mmal_port_pool_destroy( port, output->buffer_pool );
+		if( buffer_pool ) mmal_port_pool_destroy( port, buffer_pool );
 		return stak_error_throw( "Failed to set video buffer callback" );
 	}
 
 	//send all the buffers in our pool to the video port ready for use
 	{
-		int num = mmal_queue_length( output->buffer_pool->queue );
+		int num = mmal_queue_length( buffer_pool->queue );
 		int q;
 		for (q=0;q<num;q++)
 		{
-			MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get( output->buffer_pool->queue );
+			MMAL_BUFFER_HEADER_T *buffer = mmal_queue_get( buffer_pool->queue );
 
 			if ( !buffer ) {
-				if( output->buffer_pool ) mmal_port_pool_destroy( port, output->buffer_pool );
+				if( buffer_pool ) mmal_port_pool_destroy( port, buffer_pool );
 				return stak_error_throw( "Unable to get a required buffer from pool queue" );
 			}
 			else if ( mmal_port_send_buffer(port, buffer)!= MMAL_SUCCESS ) {
-				if( output->buffer_pool ) mmal_port_pool_destroy( port, output->buffer_pool );
+				if( buffer_pool ) mmal_port_pool_destroy( port, buffer_pool );
 				return stak_error_throw( "Unable to send a buffer to port" );
 			}
 		}
 	}
 
-	//return output->buffer_pool
+	output->buffer_pool = buffer_pool;
 	return stak_error_none( );
 }
 
@@ -486,43 +494,44 @@ int rpi_camera_create_splitter_component_and_setup_ports( struct rpi_camera* cam
 				*output_port   = null_ptr();
 
 	//create the camera component
-	if ( mmal_component_create( MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER, &camera->splitter_component ) != MMAL_SUCCESS ) {
-		if( camera->splitter_component )
-			mmal_component_destroy( camera->splitter_component );
+	if ( mmal_component_create( MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER, &splitter_component ) != MMAL_SUCCESS ) {
+		if( splitter_component )
+			mmal_component_destroy( splitter_component );
 		return stak_error_throw( "Failed to create splitter component" );
 	}
 
 	//check we have output ports
-	if ( camera->splitter_component->output_num != 4 || camera->splitter_component->input_num != 1 ) {
+	if ( splitter_component->output_num != 4 || splitter_component->input_num != 1 ) {
 
-		if( camera->splitter_component )
-			mmal_component_destroy( camera->splitter_component );
+		if( splitter_component )
+			mmal_component_destroy( splitter_component );
 		return stak_error_throw( "Splitter doesn't have correct ports" );
 	}
 
 	//get the ports
-	input_port = camera->splitter_component->input[0];
+	input_port = splitter_component->input[0];
 	mmal_format_copy( input_port->format, video_output_port->format );
 
 	input_port->buffer_num = 3;
 	if ( mmal_port_format_commit( input_port ) != MMAL_SUCCESS ) {
-		if( camera->splitter_component )
-			mmal_component_destroy( camera->splitter_component );
+		if( splitter_component )
+			mmal_component_destroy( splitter_component );
 		return stak_error_throw( "Couldn't set resizer input port format" );
 	}
 
 	int i;
-	for(i = 0; i < camera->splitter_component->output_num; i++)
+	for(i = 0; i < splitter_component->output_num; i++)
 	{
-		output_port = camera->splitter_component->output[i];
+		output_port = splitter_component->output[i];
 		output_port->buffer_num = 3;
 		mmal_format_copy(output_port->format,input_port->format);
 		if ( mmal_port_format_commit( output_port ) != MMAL_SUCCESS ) {
 		if ( camera->splitter_component )
-			mmal_component_destroy( camera->splitter_component );
+			mmal_component_destroy( splitter_component );
 		return stak_error_throw( "Couldn't set resizer output port format" );
 		}
 	}
+	camera->splitter_component = splitter_component;
 
 	// everything succeeded!
 	return stak_error_none( );
@@ -661,7 +670,7 @@ int rpi_camera_destroy( struct rpi_camera* camera ) {
 //   outputs:
 //   inputs:
 //----------
-int rpi_camera_read_frame( struct rpi_camera* camera, int level, void* buffer, int buffer_size ) {
+int rpi_camera_read_frame( struct rpi_camera* camera, int level, void** buffer, int buffer_size ) {
 	if ( !camera )
 		return stak_error_throw( "No camera specified" );
 	
@@ -680,7 +689,7 @@ int rpi_camera_read_frame( struct rpi_camera* camera, int level, void* buffer, i
 //   outputs:
 //   inputs:
 //----------
-int rpi_camera_read_frame_begin( struct rpi_camera* camera, int level, const void* out_buffer, int* out_buffer_size ) {
+int rpi_camera_read_frame_begin( struct rpi_camera* camera, int level, void** out_buffer, int* out_buffer_size ) {
 	if ( !camera )
 		return stak_error_throw( "No camera specified" );
 
