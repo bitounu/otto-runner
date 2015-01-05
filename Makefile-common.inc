@@ -53,18 +53,9 @@ MAIN_SRCS=		src/main.c \
 				lib/graphics/canvas/canvas.c \
 				lib/graphics/seps114a/seps114a.c \
 				lib/libshapes/libshapes.c \
-				lib/raspberrypi-omxcam/src/camera.c \
-				lib/raspberrypi-omxcam/src/video.c \
-				lib/raspberrypi-omxcam/src/core.c \
-				lib/raspberrypi-omxcam/src/still.c \
-				lib/raspberrypi-omxcam/src/utils.c \
-				lib/raspberrypi-omxcam/src/version.c \
-				lib/raspberrypi-omxcam/src/event.c \
-				lib/raspberrypi-omxcam/src/error.c \
-				lib/raspberrypi-omxcam/src/h264.c \
-				lib/raspberrypi-omxcam/src/dump_omx.c \
-				lib/raspberrypi-omxcam/src/debug.c \
-				lib/raspberrypi-omxcam/src/jpeg.c
+				lib/gif-h.c \
+				lib/camera/rpi_camera.c \
+				src/modes/camera/camera.c
 
 API_SRCS=		$(MODES)
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
@@ -83,18 +74,16 @@ header:
 build/%.o: %.c
 	@echo $(BUILDING)
 	@mkdir -p `dirname $@`
-	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -Wno-deprecated-declarations || (echo $(FAILURE) && false)
+	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g -Wno-deprecated-declarations || (echo $(FAILURE) && false)
 
 build/%.so: build/%.o $(API_EXTRA_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -pg $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
-	# @$(STRIP) build/$(notdir $@)
+	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -p -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
 
 
 $(MAIN_BIN): $(MAIN_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC)  -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -pg -Wl,--no-whole-archive -rdynamic
-	# @$(STRIP) $@
+	@$(CC)  -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -p -g -Wl,--no-whole-archive -rdynamic
 
 %.a: $(MAIN_OBJS)
 	@$(AR) r $@ $<
@@ -102,6 +91,9 @@ $(MAIN_BIN): $(MAIN_OBJS)
 run: $(MAIN_BIN)
 	@./$(MAIN_BIN)
 
+strip: $(MAIN_BIN)
+	# @$(STRIP) $@
+	# @$(STRIP) build/$(notdir $@)
 clean:
 	@rm -f $(MAIN_BIN) $(API_OUTPUT) $(ALL_OBJS)
 

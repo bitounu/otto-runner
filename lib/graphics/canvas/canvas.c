@@ -136,9 +136,9 @@ int stak_canvas_destroy(stak_canvas_s* canvas) {
     vc_dispmanx_display_close(canvas->display);
     return 0;
 }
-int stak_canvas_copy(stak_canvas_s* canvas, char* dst, uint32_t pitch) {
+int stak_canvas_copy(stak_canvas_s* canvas, uint8_t* dst, uint32_t pitch) {
     vc_dispmanx_snapshot(canvas->display, canvas->scaled_resource, 0);
-    vc_dispmanx_resource_read_data(canvas->scaled_resource, &canvas->scaled_rect, dst, pitch);
+    vc_dispmanx_resource_read_data(canvas->scaled_resource, &canvas->scaled_rect, (uint8_t*) dst, pitch);
     return 0;
 }
 int stak_canvas_swap(stak_canvas_s* canvas) {

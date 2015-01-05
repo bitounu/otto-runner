@@ -67,6 +67,7 @@ const int STAK_SEPS114A_PIN_CS = 7;
 const int STAK_SEPS114A_SPI_MODE = SPI_MODE_0;
 const int STAK_SEPS114A_SPI_BPW = 8;
 const int STAK_SEPS114A_SPI_SPEED = 4000000;
+const int STAK_SEPS114A_SPI_DELAY = 0;
 
 //#define STAK_SEPS114A_USE_SPIDEV
 
@@ -79,7 +80,7 @@ stak_seps114a_s* stak_seps114a_create() {
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_RST, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_DC, BCM2835_GPIO_FSEL_OUTP);
 #ifdef STAK_SEPS114A_USE_SPIDEV
-    bcm2835_gpio_fsel(STAK_SEPS114A_PIN_CS, BCM2835_GPIO_FSEL_OUTP);
+    //bcm2835_gpio_fsel(STAK_SEPS114A_PIN_CS, BCM2835_GPIO_FSEL_OUTP);
 #endif
 
     GPIO_OFF(STAK_SEPS114A_PIN_RST);
@@ -89,35 +90,22 @@ stak_seps114a_s* stak_seps114a_create() {
 
 #ifdef STAK_SEPS114A_USE_SPIDEV
     device->spi_fd = open("/dev/spidev0.0", O_RDWR);
-    if(device->spi_fd < 0) {
-        // error out
-        printf("Failed to open spi device\n");
-        return 0;
-    }
-    if( ioctl (device->spi_fd, SPI_IOC_WR_MODE, &STAK_SEPS114A_SPI_MODE) == -1) {
-        printf("Failed to set write mode on spidev. %s\n", strerror(errno));
-        return 0;
-    }
-    //  if( ioctl (device->spi_fd, SPI_IOC_RD_MODE, &STAK_SEPS114A_SPI_MODE) == -1) {
-    //      printf("Failed to set read mode on spidev. %s\n", strerror(errno));
-    //      return 0;
-    //  }
-    if( ioctl (device->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) == -1) {
-        printf("Failed to set write bpw on spidev. %s\n", strerror(errno));
-        return 0;
-    }
-    //  if( ioctl (device->spi_fd, SPI_IOC_RD_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) == -1) {
-    //      printf("Failed to set read bpw on spidev. %s\n", strerror(errno));
-    //      return 0;
-    //  }
-    if( ioctl (device->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) == -1) {
-        printf("Failed to set write speed on spidev. %s\n", strerror(errno));
-        return 0;
-    }
-    //  if( ioctl (device->spi_fd, SPI_IOC_RD_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED) == -1) {
-    //      printf("Failed to set read speed on spidev. %s\n", strerror(errno));
-    //      return 0;
-    //  }
+
+    if ((device->spi_fd = open ("/dev/spidev0.0", O_RDWR)) < 0)
+        return NULL;
+    
+    // Set SPI parameters.
+    //      Why are we reading it afterwriting it? I've no idea, but for now I'm blindly
+    //      copying example code I've seen online...
+    
+    if (ioctl (device->spi_fd, SPI_IOC_WR_MODE, &STAK_SEPS114A_SPI_MODE)         < 0)
+        return NULL; //wiringPiFailure (WPI_ALMOST, "SPI Mode Change failure: %s\n", strerror (errno)) ;
+
+    if (ioctl (device->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &STAK_SEPS114A_SPI_BPW) < 0)
+        return NULL; //wiringPiFailure (WPI_ALMOST, "SPI BPW Change failure: %s\n", strerror (errno)) ;
+
+    if (ioctl (device->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &STAK_SEPS114A_SPI_SPEED)   < 0)
+        return NULL; //wiringPiFailure (WPI_ALMOST, "SPI Speed Change failure: %s\n", strerror (errno)) ;
     printf("SPI initialized\n");
 #else
     bcm2835_spi_begin();
@@ -157,12 +145,12 @@ stak_seps114a_s* stak_seps114a_create() {
     // Set Memory Read/Write mode
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
 
-#if 0
+//#if 0
     // Set row scan direction
     stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_DIRECTION,0x00);     // Column : 0 --> Max, Row : 0 --> Max
     // Set row scan mode
-    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_MODE,0x00);          // Alternate scan mode
-#endif
+    stak_seps114a_write_command_value(device, SEPS114A_ROW_SCAN_MODE,0x01);          // Alternate scan mode
+//#endif
     // Set column current
     stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_R,0xF0);
     stak_seps114a_write_command_value(device, SEPS114A_COLUMN_CURRENT_G,0xF0);
@@ -187,7 +175,7 @@ stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_write_command_value(device, SEPS114A_SCAN_OFF_LEVEL,0x00);         // VCC_C*0.75
     // Set memory access point
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
-    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x01);
+    stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
     // Display ON
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
@@ -205,42 +193,37 @@ inline uint16_t swap_rgb (uint16_t rgb)
     return  (((rgb << 8) & 0xff00) |
              ((rgb >> 8) & 0xff));
 }
-inline void stak_seps114a_spidev_write(stak_seps114a_s* device, char* data, int length) {
+inline int spi_write(stak_seps114a_s* device, uint8_t *data, int len) {
+    struct spi_ioc_transfer spi ;
+    
+    spi.tx_buf        = (unsigned long)data ;
+    spi.rx_buf        = (unsigned long)data ;
+    spi.len           = len ;
+    spi.delay_usecs   = STAK_SEPS114A_SPI_DELAY ;
+    spi.speed_hz      = STAK_SEPS114A_SPI_SPEED ;
+    spi.bits_per_word = STAK_SEPS114A_SPI_BPW ;
+    
+    return ioctl (device->spi_fd, SPI_IOC_MESSAGE(1), &spi) ;
+}
+inline void stak_seps114a_spidev_write(stak_seps114a_s* device, uint8_t* data, int length) {
     int split = 0;
     int offset = 0;
     if(length > 2048) {
         int remainder = (length % 2048);
-        int chunks = (length - remainder) / 2048 + 1;
-        struct spi_ioc_transfer* message = calloc(chunks, sizeof(struct spi_ioc_transfer) );
+        int chunks = (length - remainder) / 2048;
+        // struct spi_ioc_transfer* message = calloc(chunks, sizeof(struct spi_ioc_transfer) );
         for(;split < chunks; split++) {
             offset = (split * 2048);
             int size = (length - (split * 2048)) % 2048;
             if(size == 0) size = 2048;
-            message[split].tx_buf = ((uint64_t) data + offset);
-            message[split].rx_buf = ((uint64_t) data + offset);
-            message[split].len = size;
-            message[split].delay_usecs = 10;
-            message[split].speed_hz = STAK_SEPS114A_SPI_SPEED;
-            message[split].bits_per_word = STAK_SEPS114A_SPI_BPW;
-            message[split].cs_change = 0;
-            if( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message[split])) == -1 ) {
-                printf("Failed to write message to spidev. %s\n", strerror(errno));
-                printf("\tAddress: 0x%8x\n", data + offset);
+            if( spi_write(device, data + offset, size) < 0) {
+                perror("SPI_IOC_MESSAGE");
             }
         }
     }
     else {
-        struct spi_ioc_transfer message;
-        message.tx_buf = ((uint64_t) data );
-        message.rx_buf = ((uint64_t) data );
-        message.len = length;
-        message.delay_usecs = 10;
-        message.speed_hz = STAK_SEPS114A_SPI_SPEED;
-        message.bits_per_word = STAK_SEPS114A_SPI_BPW;
-        message.cs_change = 0;
-        if( (ioctl(device->spi_fd, SPI_IOC_MESSAGE(1), &message)) == -1 ) {
-            printf("Failed to write message to spidev. %s\n", strerror(errno));
-            printf("\tAddress: 0x%8x\n", data + offset);
+        if( spi_write(device, data, length) < 0) {
+            perror("SPI_IOC_MESSAGE");
         }
     }
 }
@@ -259,71 +242,90 @@ int stak_seps114a_destroy(stak_seps114a_s* device) {
 #endif
     return 0;
 }
-int stak_seps114a_update(stak_seps114a_s* device) {
-    uint16_t *vmem16 = (uint16_t *)device->framebuffer;
-    int x, y;
 
+inline uint32_t swap_rgb32 (uint32_t rgb)
+{
+    return  (((rgb << 8) & 0xff00ff00) |
+             ((rgb >> 8) & 0x00ff00ff));
+}
+
+int stak_seps114a_update(stak_seps114a_s* device) {
+
+    stak_seps114a_write_command_value(device, SEPS114A_MEM_X1,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_MEM_X2,0x5F);
+    stak_seps114a_write_command_value(device, SEPS114A_MEM_Y1,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_MEM_Y2,0x5F);
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_X,0x00);
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
     stak_seps114a_write_command(device, SEPS114A_DDRAM_DATA_ACCESS_PORT);
 
-    for (x = 0; x < 96; x++) {
-        for (y = 0; y < 96; y++) {
+#if 1
+    uint32_t *vmem32 = (uint32_t*)device->framebuffer, *vmem32_end = vmem32 + 4608;
+    while( vmem32 < vmem32_end) {
+        *vmem32 = swap_rgb32( *vmem32 );
+        vmem32++;
+    }
+#else
+    uint16_t *vmem16 = (uint16_t *)device->framebuffer;
+    int x, y;
+    for (y = 0; y < 96; y++) {
+        for (x = 0; x < 48; x++) {
             vmem16[y*96+x] = swap_rgb(vmem16[y*96+x]);
         }
     }
+#endif
     GPIO_ON(STAK_SEPS114A_PIN_DC);
 
-    stak_seps114a_write_data(device, (char*)vmem16, 96*96*2);
+    stak_seps114a_write_data(device, (uint8_t*)device->framebuffer, 96*96*2);
     return 0;
 }
-int stak_seps114a_write_byte(stak_seps114a_s* device, char data_value) {
+int stak_seps114a_write_byte(stak_seps114a_s* device, uint8_t data_value) {
     GPIO_ON(STAK_SEPS114A_PIN_DC);
 
 #ifdef STAK_SEPS114A_USE_SPIDEV
-    GPIO_OFF(STAK_SEPS114A_PIN_CS);
+    //GPIO_OFF(STAK_SEPS114A_PIN_CS);
     stak_seps114a_spidev_write(device, &data_value, 1);
-    GPIO_ON(STAK_SEPS114A_PIN_CS);
+    //GPIO_ON(STAK_SEPS114A_PIN_CS);
 #else
     bcm2835_spi_transfer(data_value);
 #endif
     return 0;
 }
-int stak_seps114a_write_data(stak_seps114a_s* device, char* data_value, uint32_t size) {
+int stak_seps114a_write_data(stak_seps114a_s* device, uint8_t* data_value, uint32_t size) {
     GPIO_ON(STAK_SEPS114A_PIN_DC);
 
 #ifdef STAK_SEPS114A_USE_SPIDEV
-    GPIO_OFF(STAK_SEPS114A_PIN_CS);
+    //GPIO_OFF(STAK_SEPS114A_PIN_CS);
     stak_seps114a_spidev_write(device, data_value, size);
-    GPIO_ON(STAK_SEPS114A_PIN_CS);
+    //GPIO_ON(STAK_SEPS114A_PIN_CS);
 #else
-    bcm2835_spi_transfernb(data_value, data_value, size);
+    bcm2835_spi_transfernb((char*)data_value, (char*)data_value, size);
 #endif
     return 0;
 }
-int stak_seps114a_write_command(stak_seps114a_s* device, char reg_index) {
+int stak_seps114a_write_command(stak_seps114a_s* device, uint8_t reg_index) {
     //Select index addr
     GPIO_OFF(STAK_SEPS114A_PIN_DC);
 #ifdef STAK_SEPS114A_USE_SPIDEV
-    GPIO_OFF(STAK_SEPS114A_PIN_CS);
+    //GPIO_OFF(STAK_SEPS114A_PIN_CS);
     stak_seps114a_spidev_write(device, &reg_index, 1);
-    GPIO_ON(STAK_SEPS114A_PIN_CS);
+    //GPIO_ON(STAK_SEPS114A_PIN_CS);
 #else
     bcm2835_spi_transfer(reg_index);
 #endif
     return 0;
 }
-int stak_seps114a_write_command_value(stak_seps114a_s* device, char reg_index, char reg_value) {
+int stak_seps114a_write_command_value(stak_seps114a_s* device, uint8_t reg_index, uint8_t reg_value) {
     //Select index addr
 #ifdef STAK_SEPS114A_USE_SPIDEV
     GPIO_OFF(STAK_SEPS114A_PIN_DC);
-    GPIO_OFF(STAK_SEPS114A_PIN_CS);
+    //GPIO_OFF(STAK_SEPS114A_PIN_CS);
     stak_seps114a_spidev_write(device, &reg_index, 1);
-    GPIO_ON(STAK_SEPS114A_PIN_CS);
+    //GPIO_ON(STAK_SEPS114A_PIN_CS);
     GPIO_ON(STAK_SEPS114A_PIN_DC);
-    GPIO_OFF(STAK_SEPS114A_PIN_CS);
+    //GPIO_OFF(STAK_SEPS114A_PIN_CS);
     stak_seps114a_spidev_write(device, &reg_value, 1);
-    GPIO_ON(STAK_SEPS114A_PIN_CS);
+    //GPIO_ON(STAK_SEPS114A_PIN_CS);
 #else
     GPIO_OFF(STAK_SEPS114A_PIN_DC);
     bcm2835_spi_transfer(reg_index);

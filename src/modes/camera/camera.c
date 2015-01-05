@@ -9,19 +9,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stak.h>
 
 #include <pthread.h>
 #include <sched.h>
 
 #include <lib/gif-h.h>
-#include <omxcam.h>
+#include <lib/camera/rpi_camera.h>
 #include <bcm2835.h>
 #include <lib/TinyPngOut/TinyPngOut.h>
 
-static uint16_t* display_buffer = 0;
-char rgb_buffer[96*96*3];
+
+const int camera_width = 640;
+const int camera_height = 480;
+
+uint32_t* rgb_buffer, *gif_buffer;
+uint32_t* rgb_oled_buffer;
 GifWriter gif_writer;
-//GLuint camera_texture;
+VGImage camera_image = 0;
 
 
 const int pin_shutter = 16;
@@ -55,42 +60,50 @@ void* camera_update_thread(void* arg) {
     int frames_this_second = 0;
     int frames_per_second = 0;
     static uint32_t current = 0;
-    static omxcam_video_settings_t settings;
-    static omxcam_buffer_t omx_buffer;
 
-    omxcam_video_init (&settings);
+    struct rpi_camera_settings settings = {
+        .width = camera_width,
+        .height = camera_height,
+        .frame_rate = 60,
+        .num_levels = 1,
+        .do_argb_conversion = 1
+    };
 
-    settings.camera.width = 96;
-    settings.camera.height = 96;
+    struct rpi_camera* camera;
+    camera = calloc( 1, sizeof( struct rpi_camera ) );
+    rpi_camera_create( camera, settings );
+    if ( !camera )
+        stak_application_terminate();
 
-    //RGB, 640x480
-    settings.format = OMXCAM_FORMAT_RGB888;
-    omxcam_video_start_npt (&settings);
-    
-    while(!stak_application_get_is_terminating()) {
+    while( !stak_application_get_is_terminating() ) {
         frames_this_second++;
         current_time = stak_core_get_time();
-
         
         if(current_time > last_time + 1000000) {
             frames_per_second = frames_this_second;
             frames_per_second = frames_per_second;
             frames_this_second = 0;
             last_time = current_time;
-            printf("Camera FPS: %i\n", frames_per_second);
+            stak_log("Camera FPS: %i", frames_per_second);
         }
-        while( current < 4608 * 6) {
+        int total_size = camera_width * camera_height;
+        if( camera )
+            if( !rpi_camera_read_frame( camera, 0 ,rgb_buffer, total_size * 4) )
+                printf("yay!\n");
+                //stak_application_terminate();
+        /*while( current < total_size ) {
             if(omxcam_video_read_npt (&omx_buffer, 0) || omx_buffer.length == 0) {
                 omxcam_perror ();
                 return 0;
             }
 
             memcpy(rgb_buffer + current, omx_buffer.data, omx_buffer.length);
-            current += omx_buffer.length;
-        }
+            current += omx_buffer.length/4;
+        }*/
+        //vgImageSubData(camera_image, rgb_buffer, camera_width*4, VG_sRGBA_8888, 0, 0, camera_width, camera_height);
         current = 0;
     }
-    omxcam_video_stop_npt ();
+    rpi_camera_destroy( camera );
     return 0;
 }
 
@@ -100,39 +113,18 @@ int init() {
     // set pin pull up/down status
     bcm2835_gpio_set_pud(pin_shutter, BCM2835_GPIO_PUD_UP);
 
-    GifBegin( &gif_writer, "output.gif", 96, 96, 20, 8, 0);
+    GifBegin( &gif_writer, "output.gif", camera_width, camera_height, 20, 8, 0);
 
-    /*glGenTextures(1, &camera_texture);
+    rgb_buffer = calloc( 1, camera_width * camera_height * 4 );
+    gif_buffer = calloc( 1, camera_width * camera_height * 4 );
 
-    glBindTexture(GL_TEXTURE_2D, camera_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, IMAGE_SIZE_WIDTH, IMAGE_SIZE_HEIGHT, 0,
-        GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);*/
-
-
-    /* Create EGL Image 
-    eglImage = eglCreateImageKHR(
-        state->display,
-        state->context,
-        EGL_GL_TEXTURE_2D_KHR,
-        (EGLClientBuffer)camera_texture,
-        0);
-
-    if (eglImage == EGL_NO_IMAGE_KHR)
-    {
-        printf("eglCreateImageKHR failed.\n");
-        exit(1);
-    }*/
+    //camera_image = vgCreateImage(VG_sRGBA_8888, camera_width, camera_height, VG_IMAGE_QUALITY_NONANTIALIASED);
 
     pthread_create(&thread_camera_update, NULL, camera_update_thread, NULL);
 
-    //struct sched_param params;
-    //params.sched_priority = 1;
-    //pthread_setschedparam(camera_update_thread, SCHED_FIFO, &params);
+    struct sched_param params;
+    params.sched_priority = 1;
+    pthread_setschedparam(thread_camera_update, SCHED_FIFO, &params);
     return 0;
 }
 
@@ -142,37 +134,53 @@ int shutdown() {
         return -1;
     }
     GifEnd( &gif_writer );
+    free(rgb_buffer);
+    free(gif_buffer);
     printf("Terminating!\n");
     return 0;
 }
 
 
 int update() {
+    Start(96,96);
+    //Fill(255, 255, 255, 1);
+    //Circle(0.0f, 0.0f, 32.0f);
+    //vgLoadIdentity();
+    //vgScale( 0.2f, 0.2f );
+    //vgSeti(VG_MATRIX_MODE, VG_MATRIX_IMAGE_USER_TO_SURFACE);
+    //vgDrawImage(camera_image);
+    if( get_shutter_pressed() ) {
+        printf("Starting memcpy...\n");
+        memcpy(gif_buffer, rgb_buffer, camera_width * camera_height * 4);
+        printf("Ending memcpy\n");
+        GifWriteFrame( &gif_writer, gif_buffer, camera_width, camera_height, 20, 8, 0 );
+        printf("Wrote frame!\n");
+    }
     return 0;
 }
 int rotary_changed(int delta) {
     printf("Rotary changed: %i\n", delta);
     return 0;
 }
-int update_display(char* buffer, int bpp, int width, int height) {
+/*int update_display(uint8_t* buffer, int bpp, int width, int height) {
     display_buffer = (uint16_t*)buffer;
     int y = 0;
     for(;y < 96; y++) {    
         int x = 0;
         for(;x < 96; x++) {
-            int y_offset = y * 96 * 3;
-            uint16_t src_pixel =    ( (uint16_t) (rgb_buffer[y_offset + x * 3 + 0] & 0xF8) <<  8 ) |
-                                    ( (uint16_t) (rgb_buffer[y_offset + x * 3 + 1] & 0xFC) <<  3 ) |
-                                    ( (uint16_t) (rgb_buffer[y_offset + x * 3 + 2] & 0xF8) >>  3 );
+            int y_offset = y * 96 * 4;
+            uint16_t src_pixel =    ( (uint16_t) (rgb_buffer[y_offset + x * 4 + 0] & 0xF8) <<  8 ) |
+                                    ( (uint16_t) (rgb_buffer[y_offset + x * 4 + 1] & 0xFC) <<  3 ) |
+                                    ( (uint16_t) (rgb_buffer[y_offset + x * 4 + 2] & 0xF8) >>  3 );
             display_buffer[y * 96 + x] = src_pixel;
         }
     }
 
     if( get_shutter_pressed() ) {
-        GifWriteFrame( &gif_writer, rgb_buffer, 96, 96, 20, 8, 0 );
+        GifWriteFrame( &gif_writer, rgb_buffer, 666, 666, 20, 8, 0 );
         printf("Wrote frame!\n");
     }
     
     return 0;
-}
+}*/
 

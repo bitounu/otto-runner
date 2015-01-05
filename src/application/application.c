@@ -13,6 +13,8 @@
 #include <fcntl.h>
 #include <sys/msg.h>
 
+#include <stak.h>
+
 #include <pthread.h>
 #include <sched.h>
 
@@ -25,11 +27,18 @@ struct stak_state_s{
     int (*init)();
     int (*update)();
     int (*shutdown)();
-    int (*update_display) (char*, int, int, int);
+    int (*update_display) (uint8_t*, int, int, int);
     int (*rotary_changed) (int delta);
 };
 
 static struct stak_state_s app_state;
+
+#if STAK_ENABLE_DYLIBS
+#else
+    extern int init();
+    extern int shutdown();
+    extern int update();
+#endif
 
 
 const int pin_rotary_button = 17;
@@ -136,7 +145,7 @@ uint64_t stak_core_get_time() {
 //
 void stak_application_terminate_cb(int signum)
 {
-    printf("Terminating...\n");
+    stak_log("Terminating...%s", "");
     stak_application_terminate();
 }
 
@@ -160,7 +169,13 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     }
 #endif
 
+#if STAK_ENABLE_DYLIBS
     lib_open(application->plugin_name, &app_state);
+#else
+    app_state.init = init;
+    app_state.shutdown = shutdown;
+    app_state.update = update;
+#endif
     if(app_state.init) {
         app_state.init();
     }
@@ -191,11 +206,13 @@ int stak_application_destroy(struct stak_application_s* application) {
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
+
 //
 // stak_application_run
 //
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
+#if STAK_ENABLE_DYLIBS
     int lib_fd = inotify_init();
     int lib_wd, lib_read_length;
     char lib_notify_buffer[BUF_LEN];
@@ -216,6 +233,7 @@ int stak_application_run(struct stak_application_s* application) {
         return -1;
 
     }
+#endif
 
     pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
 
@@ -238,7 +256,7 @@ int stak_application_run(struct stak_application_s* application) {
             frames_per_second = frames_per_second;
             frames_this_second = 0;
             last_time = current_time;
-            printf("FPS: %i\n", frames_per_second);
+            stak_log("FPS: %i", frames_per_second);
         }
 
         if(app_state.rotary_changed) {
@@ -254,18 +272,23 @@ int stak_application_run(struct stak_application_s* application) {
 
 #if STAK_ENABLE_SEPS114A
         if(app_state.update_display) {
-            app_state.update_display(application->display->framebuffer, 16, 2, 2);
+            app_state.update_display( (uint8_t*) application->display->framebuffer, 16, 2, 2);
         } else {
+        #if 0
             stak_canvas_swap(application->canvas);
-            stak_canvas_copy(application->canvas, (char*)application->display->framebuffer, 96 * 2);
+            stak_canvas_copy(application->canvas, (uint8_t*)application->display->framebuffer, 96 * 2);
+        #endif
         }
+        #if 0
         stak_seps114a_update(application->display);
+        #endif
 #endif
 
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
 
+#if STAK_ENABLE_DYLIBS
         char* plugin_file_name = 0;
 
         {
@@ -307,6 +330,7 @@ int stak_application_run(struct stak_application_s* application) {
         else {
             perror( "read" );
         }
+#endif
     }
     return 0;
 }
@@ -323,4 +347,9 @@ int stak_application_terminate() {
 //
 int stak_application_get_is_terminating() {
     return terminate;
+}
+
+int error_throw( const char* file, int line, const char* function,const char* string ) {
+    printf( "\33[36m[\33[35m %s \33[36;1m@\33[0;33m %4i \33[36m] \33[0;34m %64s \33[31mERROR\33[0;39m %s\n", file, line, function, string );
+    return -1;
 }
