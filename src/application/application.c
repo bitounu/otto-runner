@@ -38,7 +38,7 @@ static struct stak_state_s app_state;
     extern int init();
     extern int shutdown();
     extern int update();
-    extern int rotary_changed(int);
+    //extern int rotary_changed(int);
 #endif
 
 
@@ -50,7 +50,7 @@ int value_shutter = LOW;
 int value_rotary_left = LOW;
 int value_rotary_right = LOW;
 int rotary_switch_State = 1;
-volatile int last_encoded_value = 0, encoder_value = 0;
+volatile int last_encoded_value = 0, encoder_value = 0, encoder_delta = 0;
 
 //
 // lib_open
@@ -121,8 +121,8 @@ void* update_encoder(void* arg) {
         int encoded = (bcm2835_gpio_lev(pin_rotary_a) << 1)
                      | bcm2835_gpio_lev(pin_rotary_b);
 
-        int change = encoding_matrix[last_encoded_value][encoded];
-        encoder_value += change;
+        encoder_delta = encoding_matrix[last_encoded_value][encoded];
+        encoder_value += encoder_delta;
         last_encoded_value = encoded;
 
         delta_time = (stak_core_get_time() - current_time);
@@ -176,7 +176,7 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     app_state.init = init;
     app_state.shutdown = shutdown;
     app_state.update = update;
-    app_state.rotary_changed = rotary_changed;
+    //app_state.rotary_changed = rotary_changed;
 #endif
     if(app_state.init) {
         app_state.init();
@@ -354,4 +354,8 @@ int stak_application_get_is_terminating() {
 int error_throw( const char* file, int line, const char* function,const char* string ) {
     printf( "\33[36m[\33[35m %s \33[36;1m@\33[0;33m %4i \33[36m] \33[0;34m %64s \33[31mERROR\33[0;39m %s\n", file, line, function, string );
     return -1;
+}
+
+int stak_get_rotary_value( ) {
+    return encoder_delta;
 }

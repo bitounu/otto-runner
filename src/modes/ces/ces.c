@@ -4,6 +4,8 @@
 #include <assets/DejaVuSerif.inc>
 #include <assets/DejaVuSansMono.inc>
 #include <lib/libshapes/shapes.h>
+#include <modes/ces/otto_gui.h>
+
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES/gl.h>
@@ -12,8 +14,21 @@
 #include <time.h>
 #include <dirent.h>
 
+
+int (*update_call)();
+
+int menu_state_OTTO( );
+int menu_state_mode_gif( );
+
 const int pin_pwm = 18;
 const int pin_shutter = 16;
+int rotation = 0;
+
+volatile int is_processing_gif = 0;
+pthread_t pthr_process_gif;
+
+
+struct otto_gui_card* card;
 #define BASE_DIRECTORY "/home/pi"
 #define FASTCAMD_DIR BASE_DIRECTORY "/otto-sdk/fastcmd/"
 #define GIF_TEMP_DIR BASE_DIRECTORY "/gif_temp/"
@@ -89,6 +104,10 @@ int init() {
     bcm2835_pwm_set_range(0, 1000);
     bcm2835_pwm_set_data(0, 0);
 
+    otto_gui_card_init( card );
+
+    update_call = menu_state_OTTO;
+
     return 0;
 }
 
@@ -96,6 +115,10 @@ int init() {
 //
 //
 int shutdown() {
+    if(pthread_join(pthr_process_gif, NULL)) {
+        fprintf(stderr, "Error joining gif process thread\n");
+        return -1;
+    }
     system( FASTCAMD_DIR "stop_camd.sh");
     system("rm -Rf " GIF_TEMP_DIR);
     return 0;
@@ -124,52 +147,119 @@ int get_next_file_number() {
     return highest_number;
 }
 
-int rotary_changed(int delta) {
-    static char system_string[1024];
-    if( (delta > 0) && (frame_count > 0) ) {
+//
+//
+//
+int update() {
+    //Start(96, 96);
+    VGfloat color[4] = { 0, 0, 0, 1 };
+    vgSetfv( VG_CLEAR_COLOR, 4, color );
+    vgClear( 0, 0, 96, 96 );
+    vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
+    vgLoadIdentity( );
+    Translate( 48, 48 );
 
-        bcm2835_pwm_set_data(0, 256);
-        printf("creating image...\n");
-        
-        int file_number = get_next_file_number();
-        sprintf( system_string, "gifsicle --colors 256 " GIF_TEMP_DIR "*.gif > " OUTPUT_DIR "gif_%04i.gif ; rm " GIF_TEMP_DIR "* ; chown pi:pi " OUTPUT_DIR "$FNAME", file_number );
-        system( system_string );
-        bcm2835_pwm_set_data(0, 0);
-        frame_count = 0;
+#if 0
+    vgScale(2, 2);
+    vgTranslate(160, 60);
+    vgRotate(180);
+    vgTranslate(-160, -100);
+    
+    setfill( color );
+    setstroke( color );
+
+    StrokeWidth( 0 );
+    vgLoadIdentity( );
+
+    Background( 0, 0, 0 );
+    Fill( 255,255,255,1 );
+
+    otto_gui_card_begin( card );
+
+    vgLoadIdentity( );
+
+    Translate( 20, 20 );
+    Rotate( 45 + rotation );
+    TextMid( 0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8 );
+
+    Rotate( 180 + rotation );
+    TextMid( 0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8 );
+
+    otto_gui_card_end( card );
+
+    Rotate( 45 );
+    Translate( 48, 48 );
+    TextMid( 0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8 );
+#endif
+    update_call();
+
+    return 0;
+}
+
+
+
+
+int menu_state_OTTO( ) {
+    Fill( 255,255,255,1 );
+    TextMid( 0, 0, "Press shutter to", SansTypeface, 8 );
+    TextMid( 0, -12, "enter gif mode", SansTypeface, 8 );
+    if( get_shutter_pressed() ) {
+        update_call = menu_state_mode_gif;
     }
-    else if ( delta < 0 ) {
-        printf("capturing frame %i", frame_count);
+}
+void* thread_process_gif(void* arg) {
+    is_processing_gif = 1;
+    static char system_call_string[1024];
+    bcm2835_pwm_set_data(0, 256);
+    
+    int file_number = get_next_file_number();
+    sprintf( system_call_string, "gifsicle --colors 256 " GIF_TEMP_DIR "*.gif > " OUTPUT_DIR "gif_%04i.gif ; rm " GIF_TEMP_DIR "* ; chown pi:pi " OUTPUT_DIR "$FNAME", file_number );
+    system( system_call_string );
+    bcm2835_pwm_set_data(0, 0);
+    is_processing_gif = 0;
+}
+int menu_state_mode_gif_processing( ) {
+
+    VGfloat color[4] = { 0, 255, 0, 1 };
+    vgSetfv( VG_CLEAR_COLOR, 4, color );
+    vgClear( 0, 0, 96, 96 );
+
+    Fill( 0, 0, 255,1 );
+    TextMid( 0, 0, "Processing...", SansTypeface, 8 );
+
+    if( is_processing_gif == 0 )
+        update_call = menu_state_OTTO;
+}
+int menu_state_mode_gif( ) {
+    static char string_buffer[256];
+    
+    Fill( 255,255,255,1 );
+    
+    if( get_shutter_pressed( ) ) {
+        update_call = menu_state_OTTO;
+    }
+
+    if( frame_count ) {
+        sprintf(string_buffer, "Frames %i", frame_count);
+        TextMid( 0, 0, string_buffer, SansTypeface, 8 );
+    } else {
+        TextMid( 0, 0, "Rotate shutter to", SansTypeface, 8 );
+        TextMid( 0, -12, "capture frames", SansTypeface, 8 );
+    }
+    
+    int rot = stak_get_rotary_value();
+    
+    if( ( rot > 0 ) && ( frame_count > 0 ) ) {
+        frame_count = 0;
+        is_processing_gif = 1;
+        update_call = menu_state_mode_gif_processing;
+        pthread_create(&pthr_process_gif, NULL, thread_process_gif, NULL);
+
+    } else if ( rot < 0 ) {
         bcm2835_pwm_set_data(0, 512);
         system( FASTCAMD_DIR "do_capture.sh");
         nanosleep((struct timespec[]){{0, 10000000L}}, NULL);
         bcm2835_pwm_set_data(0, 0);
         frame_count++;
     }
-    return 0;
-}
-
-//
-//
-//
-int update() {
-    static char string_buffer[256];
-    sprintf(string_buffer, "Frames %i", frame_count);
-    
-    
-
-    //Start(96, 96);
-    VGfloat color[4] = { 0, 0, 0, 1 };
-    vgSetfv(VG_CLEAR_COLOR, 4, color);
-    vgClear(0, 0, 96, 96);
-    setfill(color);
-    setstroke(color);
-    StrokeWidth(0);
-    vgLoadIdentity();
-    Background(0, 0, 0);
-    Fill(255,255,255,1);
-    Translate(48, 48);
-    TextMid(0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8);
-    Rotate(180);
-    TextMid(0, -48 * 0.6, string_buffer, SansTypeface, 96 / 8);
-    return 0;
 }
