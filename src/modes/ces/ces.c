@@ -22,7 +22,7 @@ int menu_state_mode_gif( );
 
 const int pin_pwm = 18;
 const int pin_shutter = 16;
-int rotation = 0;
+float rotation = -90;
 
 volatile int is_processing_gif = 0;
 pthread_t pthr_process_gif;
@@ -35,6 +35,12 @@ struct otto_gui_card* card;
 #define OUTPUT_DIR BASE_DIRECTORY "/output/"
 
 int frame_count = 0;
+
+int beep() {
+    bcm2835_pwm_set_data(0, 256);
+    nanosleep((struct timespec[]){{0, 10000000L}}, NULL);
+    bcm2835_pwm_set_data(0, 0);
+}
 //
 //
 //
@@ -115,7 +121,7 @@ int init() {
 //
 //
 int shutdown() {
-    if(pthread_join(pthr_process_gif, NULL)) {
+    if( pthread_join( pthr_process_gif, NULL ) ) {
         fprintf(stderr, "Error joining gif process thread\n");
         return -1;
     }
@@ -158,6 +164,9 @@ int update() {
     vgSeti(VG_MATRIX_MODE, VG_MATRIX_PATH_USER_TO_SURFACE);
     vgLoadIdentity( );
     Translate( 48, 48 );
+    rotation -= 0.25f;
+    if( rotation <= 0.0f ) rotation += 360.0f;
+    Rotate(rotation);
 
 #if 0
     vgScale(2, 2);
@@ -204,6 +213,7 @@ int menu_state_OTTO( ) {
     TextMid( 0, 0, "Press shutter to", SansTypeface, 8 );
     TextMid( 0, -12, "enter gif mode", SansTypeface, 8 );
     if( get_shutter_pressed() ) {
+        beep();
         update_call = menu_state_mode_gif;
     }
 }
@@ -236,6 +246,7 @@ int menu_state_mode_gif( ) {
     Fill( 255,255,255,1 );
     
     if( get_shutter_pressed( ) ) {
+        beep();
         update_call = menu_state_OTTO;
     }
 
