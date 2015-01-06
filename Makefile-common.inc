@@ -54,6 +54,7 @@ MAIN_SRCS=		src/main.c \
 				lib/graphics/seps114a/seps114a.c \
 				lib/libshapes/libshapes.c \
 				src/modes/ces/otto_gui.c \
+				src/modes/ces/ces_utils.c \
 				src/modes/ces/ces.c
 
 API_SRCS=		$(MODES)

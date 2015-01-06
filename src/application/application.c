@@ -113,6 +113,12 @@ void* update_encoder(void* arg) {
         { 0, 1,-1, 0}
     };
 
+    bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
+    // set pin pull up/down status
+    bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
+    bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
+
     uint64_t last_time, current_time, delta_time;
     delta_time = last_time = current_time = stak_core_get_time();
     while(!stak_application_get_is_terminating()) {
@@ -287,7 +293,7 @@ int stak_application_run(struct stak_application_s* application) {
 #endif
 
         delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
+        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
         nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
 
 #if STAK_ENABLE_DYLIBS
