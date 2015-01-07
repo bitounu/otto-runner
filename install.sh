@@ -6,6 +6,6 @@ cp fastcamd-init /etc/init.d/fastcamd
 update-rc.d python defaults
 update-rc.d otto-demo defaults
 update-rc.d fastcamd defaults
-cp -rf fastcmd ~/fastcmd
+cp -r fastcmd/ ~/fastcmd
 apt-get -y install python-pip
 pip install bottle
