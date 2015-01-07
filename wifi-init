@@ -1,0 +1,23 @@
+#! /bin/sh
+# /etc/init.d/wifi
+#
+
+# Some things that run always
+touch /var/lock/wifi
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+        /home/pi/create_ap/create_ap -n --driver rtl871xdrv wlan0 OTTOclear allyourbase
+    ;;
+  stop)
+	killall hostapd
+    ;;
+  *)
+    echo "Usage: /etc/init.d/blah {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
+
