@@ -4,7 +4,7 @@ import os
 import bottle
 # bottle.TEMPLATE_PATH.insert(0,'/home/pi/otto-sdk/python/views')
 os.chdir('/home/pi/otto-sdk/python/')
-@route('/images')
+@route('/')
 def index():
     dirs = os.listdir( "/home/pi/output/" )
     dirs.sort(reverse=True)
