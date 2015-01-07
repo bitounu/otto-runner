@@ -8,7 +8,7 @@ touch /var/lock/otto-demo
 # Carry out specific functions when asked to by the system
 case "$1" in
   start)
-    /home/pi/otto-sdk/main
+    /home/pi/otto-sdk/build/main
     ;;
   stop)
     killall main
