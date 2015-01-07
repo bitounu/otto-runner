@@ -8,7 +8,7 @@ touch /var/lock/python
 # Carry out specific functions when asked to by the system
 case "$1" in
   start)
-    cd /home/pi/otto-sdk/python/ ; server.py
+        /home/pi/otto-sdk/python/server.py
     ;;
   stop)
 	killall python
