@@ -143,7 +143,7 @@ stak_seps114a_s* stak_seps114a_create() {
     // Set MCU Interface
     stak_seps114a_write_command_value(device, SEPS114A_CPU_IF,0x00);                 // MPU External interface mode, 8bits
     // Set Memory Read/Write mode
-    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x01);
 
 //#if 0
     // Set row scan direction
@@ -178,7 +178,7 @@ stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAYSTART_Y,0x00);
     // Display ON
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
-    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x01);
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
     printf("Display enabled\n");
 
     device->framebuffer = NULL;
@@ -250,7 +250,7 @@ inline uint32_t swap_rgb32 (uint32_t rgb)
 }
 
 int stak_seps114a_update(stak_seps114a_s* device) {
-
+    stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x01);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_X1,0x00);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_X2,0x5F);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_Y1,0x00);

@@ -362,6 +362,12 @@ int menu_state_mode_gif( ) {
             system( FASTCAMD_DIR "do_capture.sh");
             beep(256, 20);
             frame_count++;
+            if(frame_count == 31) {
+                frame_count = 0;
+                is_processing_gif = 1;
+                update_call = menu_state_mode_gif_processing;
+                pthread_create(&pthr_process_gif, NULL, thread_process_gif, NULL);
+            }
         }
     }
 
@@ -384,7 +390,7 @@ int menu_state_mode_gif( ) {
         // TextMid( 0, 0, "anticlockwise to", SansTypeface, 8 );
         // TextMid( 0, -12, "end animation", SansTypeface, 8 );
         sprintf(string_buffer, "%i%%", (int)(( ( (float)rotary_count_amount ) / ((float)rotary_count_limit+1.0f) )*100.0f) );
-        TextMid( 0, -4, string_buffer, SansTypeface, 8 );
+        TextMid( 0, -6, string_buffer, SansTypeface, 14 );
         
         // increase rotary count amount
         rotary_count_amount += rot;
@@ -413,20 +419,20 @@ int menu_state_mode_gif( ) {
     } else {
         if ( get_rotary_switch_position( ) ) {
             vgSeti(VG_MATRIX_MODE,VG_MATRIX_IMAGE_USER_TO_SURFACE);
-            Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/presstoaddframes.jpg");
+            Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/assets/presstoaddframes.jpg");
             vgSeti(VG_MATRIX_MODE,VG_MATRIX_PATH_USER_TO_SURFACE);
             // TextMid( 0, 0, "Press shutter to", SansTypeface, 8 );
             // TextMid( 0, -12, "capture frames", SansTypeface, 8 );
         }else {
             vgSeti(VG_MATRIX_MODE,VG_MATRIX_IMAGE_USER_TO_SURFACE);
-            Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/rotatetoaddframes.jpg");
+            Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/assets/rotatetoaddframes.jpg");
             vgSeti(VG_MATRIX_MODE,VG_MATRIX_PATH_USER_TO_SURFACE);
             // TextMid( 0, 0, "Rotate rotary to", SansTypeface, 8 );
             // TextMid( 0, -12, "capture frames", SansTypeface, 8 );
         }
         if (frame_count) {
             sprintf(string_buffer, "%i", frame_count);
-            TextMid( 0, -4, string_buffer, SansTypeface, 8 );
+            TextMid( 0, -6, string_buffer, SansTypeface, 14 );
         }
     }
 }

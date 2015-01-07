@@ -1,5 +1,3 @@
-<div id='images'>
 % for file in files:
-    <h1>{{file}}</h1>
+  <img src='/image/{{file}}' />
 % end
-</div>

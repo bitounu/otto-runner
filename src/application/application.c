@@ -50,7 +50,7 @@ int value_shutter = LOW;
 int value_rotary_left = LOW;
 int value_rotary_right = LOW;
 int rotary_switch_State = 1;
-volatile int last_encoded_value = 0, encoder_value = 0, encoder_delta = 0;
+volatile int last_encoded_value = 0, encoder_value = 0, encoder_delta = 0, encoder_last_delta = 0;
 
 //
 // lib_open
@@ -128,8 +128,15 @@ void* update_encoder(void* arg) {
                      | bcm2835_gpio_lev(pin_rotary_b);
 
         encoder_delta = encoding_matrix[last_encoded_value][encoded];
-        encoder_value += encoder_delta;
-        last_encoded_value = encoded;
+        
+        //if( encoder_last_delta == encoder_value) {
+            encoder_value += encoder_delta;
+            last_encoded_value = encoded;
+        /*}
+        else {
+            encoder_last_delta = encoder_value;
+            last_encoded_value = encoded;
+        }*/
 
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));

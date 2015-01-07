@@ -1,7 +1,9 @@
 #!/usr/bin/python
 from bottle import route, run, template, static_file
 import os
-
+import bottle
+# bottle.TEMPLATE_PATH.insert(0,'/home/pi/otto-sdk/python/views')
+os.chdir('/home/pi/otto-sdk/python/')
 @route('/images')
 def index():
     dirs = os.listdir( "/home/pi/output/" )
@@ -12,4 +14,4 @@ def index():
 def callback(name):
     return static_file(name, root='/home/pi/output')
 
-run(host='192.168.2.14', port=8080)
+run(host='0.0.0.0', port=80)

@@ -193,7 +193,8 @@ void makeimage(VGfloat x, VGfloat y, int w, int h, VGubyte * data) {
 	VGImageFormat rgbaFormat = VG_sABGR_8888;
 	VGImage img = vgCreateImage(rgbaFormat, w, h, VG_IMAGE_QUALITY_BETTER);
 	vgImageSubData(img, (void *)data, dstride, rgbaFormat, 0, 0, w, h);
-	vgSetPixels(x, y, img, 0, 0, w, h);
+	vgDrawImage(img);
+	//vgSetPixels(x, y, img, 0, 0, w, h);
 	vgDestroyImage(img);
 }
 
