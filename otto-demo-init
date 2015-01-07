@@ -1,0 +1,23 @@
+#! /bin/sh
+# /etc/init.d/otto-demo
+#
+
+# Some things that run always
+touch /var/lock/otto-demo
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    /root/main
+    ;;
+  stop)
+    killall main
+    ;;
+  *)
+    echo "Usage: /etc/init.d/blah {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
+
