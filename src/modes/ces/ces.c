@@ -15,10 +15,15 @@
 #include <dirent.h>
 #include "ces_utils.h"
 
+#include <omxcam.h>
 int (*update_call)();
 
 int menu_state_OTTO( );
 int menu_state_mode_gif( );
+
+#define video_format VG_sXBGR_8888
+VGImage img;
+VGubyte *data, *buffer;
 
 
 int rotary_count_amount = 0;
@@ -28,14 +33,86 @@ float rotation = -90;
 
 
 volatile int is_processing_gif = 0;
+volatile int is_camera_on = 1;
 pthread_t pthr_process_gif;
 
 
 struct otto_gui_card* card;
 
 int frame_count = 0;
+#if 0
+pthread_t thread_camera_update;
 
+void* camera_update_thread(void* arg) {
+    
+    uint64_t last_time, current_time, delta_time;
+    last_time = current_time = stak_core_get_time();
+    int frames_this_second = 0;
+    int frames_per_second = 0;
+    static uint32_t current = 0;
+    static omxcam_video_settings_t settings;
+    static omxcam_buffer_t omx_buffer;
+    int camera_was_on = 0;
 
+    //system( FASTCAMD_DIR "stop_camd.sh");
+    omxcam_video_init (&settings);
+    data = (VGubyte *) malloc(96*96*4);
+    buffer = (VGubyte *) malloc(96*96*4);
+
+    settings.camera.width = 96;
+    settings.camera.height = 96;
+    settings.camera.rotation = OMXCAM_ROTATION_90;
+    settings.camera.mirror = OMXCAM_MIRROR_VERTICAL;
+    settings.camera.exposure = OMXCAM_EXPOSURE_AUTO;
+
+    //RGB, 640x480
+    settings.format = OMXCAM_FORMAT_RGBA8888;
+    omxcam_video_start_npt (&settings);
+    
+    while( !stak_application_get_is_terminating() ) {
+        if ( ( is_camera_on ) && ( !camera_was_on ) ) {
+            camera_was_on = 1;
+        }
+
+        if( !is_camera_on ) {
+            if ( camera_was_on ) {
+                omxcam_video_stop_npt ();
+                camera_was_on = 0;
+                //system( FASTCAMD_DIR "start_camd.sh");
+            }
+            nanosleep((struct timespec[]){{0, 33000000L}}, NULL);
+            continue;
+        }
+        frames_this_second++;
+        current_time = stak_core_get_time();
+
+        
+        if(current_time > last_time + 1000000) {
+            frames_per_second = frames_this_second;
+            frames_per_second = frames_per_second;
+            frames_this_second = 0;
+            last_time = current_time;
+            printf("Camera FPS: %i\n", frames_per_second);
+        }
+        while( current < 4608 * 8) {
+            if(omxcam_video_read_npt (&omx_buffer, 0) || omx_buffer.length == 0) {
+                omxcam_perror ();
+                return 0;
+            }
+
+            memcpy(buffer + current, omx_buffer.data, omx_buffer.length);
+            current += omx_buffer.length;
+        }
+        current = 0;
+        delta_time = (stak_core_get_time() - current_time);
+        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
+        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+    }
+    if ( camera_was_on )
+        omxcam_video_stop_npt ();
+    return 0;
+}
+#endif 
 //
 // init
 //
@@ -95,6 +172,11 @@ int init() {
     otto_gui_card_init( card );
 
     update_call = menu_state_OTTO;
+#if 0
+    pthread_create(&thread_camera_update, NULL, camera_update_thread, NULL);
+#endif
+    
+    img = vgCreateImage(video_format, 96, 96, VG_IMAGE_QUALITY_BETTER);
 
     return 0;
 }
@@ -108,6 +190,13 @@ int shutdown() {
     if( pthread_join( pthr_process_gif, NULL ) ) {
         fprintf(stderr, "Error joining gif process thread\n");
     }
+
+#if 0
+    if( pthread_join( thread_camera_update, NULL ) ) {
+        fprintf(stderr, "Error joining gif process thread\n");
+    }
+
+#endif 
 
     // stop fastcamd and delete temp directory
     system( FASTCAMD_DIR "stop_camd.sh");
@@ -142,6 +231,22 @@ int update() {
     return 0;
 }
 
+#if 0
+int menu_state_camera_output( ) {
+    is_camera_on = 1;
+    memcpy(data, buffer, 96*96*4);
+    vgImageSubData(img, data, 96*4, video_format, 0, 0, 96, 96);
+    vgLoadIdentity( );
+    Rotate(90);
+    vgSetPixels(0, 0, img, 0, 0, 96, 96);
+    //vgDrawImage(img);
+    if( get_shutter_pressed() ) {
+        beep();
+        //is_camera_on = 0;
+        update_call = menu_state_OTTO;
+    }
+}
+#endif
 
 // called when rotary is down
 int menu_state_OTTO( ) {
@@ -154,6 +259,12 @@ int menu_state_OTTO( ) {
         beep();
         update_call = menu_state_mode_gif;
     }
+#if 0
+    if ( get_shutter_pressed() ) {
+        beep();
+        update_call = thread_process_gif;
+    }
+#endif
 }
 
 // runs gifsicle to process gifs

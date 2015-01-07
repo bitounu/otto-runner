@@ -30,7 +30,7 @@ int get_next_file_number() {
 
 int beep() {
     bcm2835_pwm_set_data(0, 256);
-    nanosleep((struct timespec[]){{0, 10000000L}}, NULL);
+    nanosleep((struct timespec[]){{0, 15000000L}}, NULL);
     bcm2835_pwm_set_data(0, 0);
 }
 //

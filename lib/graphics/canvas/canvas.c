@@ -137,7 +137,7 @@ int stak_canvas_destroy(stak_canvas_s* canvas) {
     return 0;
 }
 int stak_canvas_copy(stak_canvas_s* canvas, uint8_t* dst, uint32_t pitch) {
-    vc_dispmanx_snapshot(canvas->display, canvas->scaled_resource, DISPMANX_FLIP_HRIZ | DISPMANX_SNAPSHOT_SWAP_RED_BLUE);
+    vc_dispmanx_snapshot(canvas->display, canvas->scaled_resource, DISPMANX_FLIP_HRIZ);
     vc_dispmanx_resource_read_data(canvas->scaled_resource, &canvas->scaled_rect, (uint8_t*) dst, pitch);
     return 0;
 }
