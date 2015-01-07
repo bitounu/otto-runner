@@ -53,6 +53,18 @@ MAIN_SRCS=		src/main.c \
 				lib/graphics/canvas/canvas.c \
 				lib/graphics/seps114a/seps114a.c \
 				lib/libshapes/libshapes.c \
+				lib/raspberrypi-omxcam/src/camera.c \
+				lib/raspberrypi-omxcam/src/video.c \
+				lib/raspberrypi-omxcam/src/core.c \
+				lib/raspberrypi-omxcam/src/still.c \
+				lib/raspberrypi-omxcam/src/utils.c \
+				lib/raspberrypi-omxcam/src/version.c \
+				lib/raspberrypi-omxcam/src/event.c \
+				lib/raspberrypi-omxcam/src/error.c \
+				lib/raspberrypi-omxcam/src/h264.c \
+				lib/raspberrypi-omxcam/src/dump_omx.c \
+				lib/raspberrypi-omxcam/src/debug.c \
+				lib/raspberrypi-omxcam/src/jpeg.c \
 				src/modes/ces/otto_gui.c \
 				src/modes/ces/ces_utils.c \
 				src/modes/ces/ces.c

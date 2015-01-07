@@ -28,9 +28,9 @@ int get_next_file_number() {
     return highest_number;
 }
 
-int beep() {
-    bcm2835_pwm_set_data(0, 256);
-    nanosleep((struct timespec[]){{0, 15000000L}}, NULL);
+int beep(int value, int ms) {
+    bcm2835_pwm_set_data(0, value);
+    nanosleep((struct timespec[]){{0, (long)ms * 1000000L}}, NULL);
     bcm2835_pwm_set_data(0, 0);
 }
 //

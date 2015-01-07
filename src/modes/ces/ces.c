@@ -27,9 +27,10 @@ VGubyte *data, *buffer;
 
 
 int rotary_count_amount = 0;
-int time_since_rotation_started = 0;
+int time_since_rotation = 0;
+int anticlockwise_started = 0;
 
-float rotation = -90;
+float rotation = 270;
 
 
 volatile int is_processing_gif = 0;
@@ -175,7 +176,7 @@ int init() {
 #if 0
     pthread_create(&thread_camera_update, NULL, camera_update_thread, NULL);
 #endif
-    
+
     img = vgCreateImage(video_format, 96, 96, VG_IMAGE_QUALITY_BETTER);
 
     return 0;
@@ -221,8 +222,8 @@ int update() {
     Translate( 48, 48 );
 
     // calculate text rotation
-    rotation -= 0.25f;
-    if( rotation <= 0.0f ) rotation += 360.0f;
+    //rotation -= 0.25f;
+    //if( rotation <= 0.0f ) rotation += 360.0f;
     Rotate(rotation);
 
     // call current state
@@ -250,16 +251,14 @@ int menu_state_camera_output( ) {
 
 // called when rotary is down
 int menu_state_OTTO( ) {
-    Fill( 255,255,255,1 );
-    TextMid( 0, 0, "Press rotary to", SansTypeface, 8 );
-    TextMid( 0, -12, "enter gif mode", SansTypeface, 8 );
+    update_call = menu_state_mode_gif;
 
+#if 0
     // if rotary is up, beep and switch to gif mode
     if( !get_rotary_switch_position( ) ) {
         beep();
         update_call = menu_state_mode_gif;
     }
-#if 0
     if ( get_shutter_pressed() ) {
         beep();
         update_call = thread_process_gif;
@@ -272,12 +271,13 @@ void* thread_process_gif(void* arg) {
     static char system_call_string[1024];
 
     is_processing_gif = 1;
-
-    // setup buzzer to make noise while processing
-    bcm2835_pwm_set_data(0, 256);
     
     // return the number to use for the next image file
     int file_number = get_next_file_number();
+
+    beep(512, 30);
+    nanosleep((struct timespec[]){{0, 200000000L}}, NULL);
+    beep(512, 30);
 
     // create system call string based on calculated file number
     sprintf( system_call_string, "gifsicle --colors 256 " GIF_TEMP_DIR "*.gif > " OUTPUT_DIR "gif_%04i.gif ; rm " GIF_TEMP_DIR "* ; chown pi:pi " OUTPUT_DIR "$FNAME", file_number );
@@ -285,9 +285,9 @@ void* thread_process_gif(void* arg) {
     // run processing call
     system( system_call_string );
 
-    // once finished, turn off buzzer
-    bcm2835_pwm_set_data(0, 0);
     is_processing_gif = 0;
+
+    beep(256, 30);
 }
 
 int menu_state_mode_gif_processing( ) {
@@ -296,12 +296,21 @@ int menu_state_mode_gif_processing( ) {
     vgSetfv( VG_CLEAR_COLOR, 4, color );
     vgClear( 0, 0, 96, 96 );
 
-    // and write "Processing..." on the screen
-    Fill( 0, 0, 255,1 );
-    TextMid( 0, 0, "Processing...", SansTypeface, 8 );
+    vgSeti(VG_MATRIX_MODE,VG_MATRIX_IMAGE_USER_TO_SURFACE);
+    Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/assets/makinggif.jpg");
+    vgSeti(VG_MATRIX_MODE,VG_MATRIX_PATH_USER_TO_SURFACE);
 
-    if( is_processing_gif == 0 )
+    // and write "Processing..." on the screen
+    // Fill( 0, 0, 255,1 );
+    // TextMid( 0, 0, "Creating Gif...", SansTypeface, 8 );
+
+    rotation -= 2.0f;
+    if( rotation <= 0.0f ) rotation += 360.0f;
+
+    if( is_processing_gif == 0 ) {
         update_call = menu_state_OTTO;
+        rotation = 270;
+    }
 }
 
 int menu_state_mode_gif( ) {
@@ -309,54 +318,115 @@ int menu_state_mode_gif( ) {
     static char string_buffer[ 256 ];
     
     Fill( 255,255,255,1 );
-    
-    // if rotary switch is pressed, beep and switch to menu state
-    if( get_rotary_switch_position( ) ) {
-        beep();
-        update_call = menu_state_OTTO;
-    }
 
     // if we have captured any frames, output the count to the screen
-    if( frame_count ) {
-        sprintf(string_buffer, "Frames %i", frame_count);
-        TextMid( 0, 0, string_buffer, SansTypeface, 8 );
-    } else {
-        TextMid( 0, 0, "Rotate rotary to", SansTypeface, 8 );
-        TextMid( 0, -12, "capture frames", SansTypeface, 8 );
+    static int last_rot = 0;
+    int cur_rot = stak_get_rotary_value(), rot = 0;
+    
+    if ( (last_rot <= 0) == (cur_rot <= 0) ){
+        rot = cur_rot;
+        last_rot = cur_rot;
+    }else {
+        last_rot = cur_rot;
+        rot = 0;
     }
-    
-    int rot = stak_get_rotary_value();
-    
+    /*  if rotating clockwise
+     *      take frame
+
+     *  if shutter press
+     *      take frame
+
+     *  if rotating anticlockwise
+     *      display info about ending gif
+     *  else
+     *      if frames
+     *          show frame count
+     *      else
+     *          show instructions
+     */
+
+    int current_time = stak_core_get_time();
+    static int rotary_count_limit = 5;
+
+    // if we're rotating clockwise
+    if ( ( ( rot < 0 ) &&
+           ( !get_rotary_switch_position() ) ||
+         get_shutter_pressed() ) ){
+
+        if ( ( time_since_rotation == 0 ) ||
+             ( current_time > time_since_rotation + 200000 ) ) {
+            time_since_rotation = 0;
+            anticlockwise_started = 0;
+            rotary_count_amount = 0;
+            // capture frame and beep
+            system( FASTCAMD_DIR "do_capture.sh");
+            beep(256, 20);
+            frame_count++;
+        }
+    }
+
+    if ( (time_since_rotation != 0 ) && (current_time >= time_since_rotation + 2500000) ) {
+        time_since_rotation = 0;
+        anticlockwise_started = 0;
+        rotary_count_amount = 0;
+    }
+
     // if rotary is turning left and we have frames
-    if( ( rot < 0 ) && ( frame_count ) ) {
+    if( ( ( rot > 0 ) || ( anticlockwise_started ) ) && ( frame_count ) ) {
+
+        anticlockwise_started = 1;
+
+        vgSeti(VG_MATRIX_MODE,VG_MATRIX_IMAGE_USER_TO_SURFACE);
+        Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/assets/rotatecranktosave.jpg");
+        vgSeti(VG_MATRIX_MODE,VG_MATRIX_PATH_USER_TO_SURFACE);
+
+        // TextMid( 0, 12, "Continue rotating", SansTypeface, 8 );
+        // TextMid( 0, 0, "anticlockwise to", SansTypeface, 8 );
+        // TextMid( 0, -12, "end animation", SansTypeface, 8 );
+        sprintf(string_buffer, "%i%%", (int)(( ( (float)rotary_count_amount ) / ((float)rotary_count_limit+1.0f) )*100.0f) );
+        TextMid( 0, -4, string_buffer, SansTypeface, 8 );
         
         // increase rotary count amount
-        rotary_count_amount += -rot;
+        rotary_count_amount += rot;
 
         // if we haven't started a countdown timer 
-        if ( time_since_rotation_started == 0 )
-            time_since_rotation_started = stak_core_get_time();
+        if ( rot > 0)
+            time_since_rotation = stak_core_get_time();
 
-        if ( stak_core_get_time() >= time_since_rotation_started + 10000000000L) {
-            time_since_rotation_started = 0;
-        }else  if( rotary_count_amount > 10 ) {
+        //rotation += 10*rot;
+        rotary_count_limit = 5;
+        if( !get_rotary_switch_position() )
+            rotary_count_limit += 5;
+        if( rotary_count_amount > rotary_count_limit ) {
             // reset gif mode state
             rotary_count_amount = 0;
             frame_count = 0;
             is_processing_gif = 1;
             rotary_count_amount = 0;
-            time_since_rotation_started = 0;
+            time_since_rotation = 0;
+            anticlockwise_started = 0;
 
             // setup processing state and call processing thread
             update_call = menu_state_mode_gif_processing;
             pthread_create(&pthr_process_gif, NULL, thread_process_gif, NULL);
         }
-
-    // if we're rotating clockwise
-    } else if ( rot > 0 ) {
-        // capture frame and beep
-        system( FASTCAMD_DIR "do_capture.sh");
-        beep();
-        frame_count++;
+    } else {
+        if ( get_rotary_switch_position( ) ) {
+            vgSeti(VG_MATRIX_MODE,VG_MATRIX_IMAGE_USER_TO_SURFACE);
+            Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/presstoaddframes.jpg");
+            vgSeti(VG_MATRIX_MODE,VG_MATRIX_PATH_USER_TO_SURFACE);
+            // TextMid( 0, 0, "Press shutter to", SansTypeface, 8 );
+            // TextMid( 0, -12, "capture frames", SansTypeface, 8 );
+        }else {
+            vgSeti(VG_MATRIX_MODE,VG_MATRIX_IMAGE_USER_TO_SURFACE);
+            Image(0,0,96,96, BASE_DIRECTORY "/otto-sdk/rotatetoaddframes.jpg");
+            vgSeti(VG_MATRIX_MODE,VG_MATRIX_PATH_USER_TO_SURFACE);
+            // TextMid( 0, 0, "Rotate rotary to", SansTypeface, 8 );
+            // TextMid( 0, -12, "capture frames", SansTypeface, 8 );
+        }
+        if (frame_count) {
+            sprintf(string_buffer, "%i", frame_count);
+            TextMid( 0, -4, string_buffer, SansTypeface, 8 );
+        }
     }
 }
