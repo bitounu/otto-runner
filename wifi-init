@@ -4,11 +4,12 @@
 
 # Some things that run always
 touch /var/lock/wifi
+MAC=`cat /sys/class/net/wlan0/address | sed s/://g`
 
 # Carry out specific functions when asked to by the system
 case "$1" in
   start)
-        /home/pi/create_ap/create_ap -n --driver rtl871xdrv wlan0 OTTOclear allyourbase
+        /home/pi/create_ap/create_ap -n --driver rtl871xdrv wlan0 OTTOClear-$MAC allyourbase
     ;;
   stop)
 	killall hostapd
