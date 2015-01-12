@@ -1,5 +1,8 @@
 #!/bin/bash
 
+git submodule init
+git submodule update
+
 ./wifi.sh
 
 cp python-init /etc/init.d/python
