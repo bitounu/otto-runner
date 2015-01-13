@@ -5,6 +5,11 @@ git submodule update
 
 ./wifi.sh
 
+apt-get -y install python-pip dnsmasq device-tree-compiler
+pip install bottle
+
+dtc -I dts -O dtb -o /boot/dt-blob.bin ces.dts
+
 cp python-init /etc/init.d/python
 cp otto-demo-init /etc/init.d/otto-demo
 cp fastcamd-init /etc/init.d/fastcamd
@@ -14,9 +19,8 @@ update-rc.d python defaults
 update-rc.d wifi defaults
 update-rc.d otto-demo defaults
 update-rc.d fastcamd defaults
+update-rc.d dnsmasq remove
 cp -r fastcmd/ ~/fastcmd
-apt-get -y install python-pip dnsmasq
-pip install bottle
 
 echo "options 8192cu rtw_power_mgnt=0" > /etc/modprobe.d/8192cu.conf
 
