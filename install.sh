@@ -15,5 +15,24 @@ update-rc.d wifi defaults
 update-rc.d otto-demo defaults
 update-rc.d fastcamd defaults
 cp -r fastcmd/ ~/fastcmd
-apt-get -y install python-pip
+apt-get -y install python-pip dnsmasq
 pip install bottle
+
+echo "options 8192cu rtw_power_mgnt=0" > /etc/modprobe.d/8192cu.conf
+
+cat <<EOF > /etc/network/interfaces
+auto lo
+
+iface lo inet loopback
+iface eth0 inet dhcp
+iface eth1 inet dhcp
+
+allow-hotplug eth0
+allow-hotplug eth1
+allow-hotplug wlan0
+EOF
+
+cat <<EOF > /etc/modprobe.d/raspi-blacklist.conf
+blacklist snd-soc-pcm512x
+blacklist snd-soc-wm8804
+EOF
