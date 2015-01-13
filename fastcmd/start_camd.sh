@@ -15,7 +15,7 @@ output_file=${1-/home/pi/gif_temp/tmp_%04d.gif}
 echo "Output will be written to $output_file"
 
 #This will make pictures of 200x200px feel free to change.
-/home/pi/fastcmd/raspifastcamd -w 640 -h 480 -e gif -o $output_file &
+/home/pi/otto-sdk/fastcmd/raspifastcamd -w 640 -h 480 -e gif -o $output_file &
 pid=$!
 
 echo "Pid of raspifastcamd is $pid"
