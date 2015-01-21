@@ -56,12 +56,17 @@ static void cubicTo(VGPath path, float x1, float y1, float x2, float y2, float x
 }
 
 int update() {
-  VGfloat bgColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+  static const float screenWidth  = 96.0f;
+  static const float screenHeight = 96.0f;
+  static const float defaultMatrix[] =
+    { -0.0f, -1.0f, -0.0f, -1.0f,  0.0f,  0.0f, screenWidth, screenHeight, 1.0f };
+
+  static const VGfloat bgColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
   vgSetfv(VG_CLEAR_COLOR, 4, bgColor);
   vgClear(0, 0, 96, 96);
 
-  vgLoadIdentity();
+  vgLoadMatrix(defaultMatrix);
   vgTranslate(48, 48);
   vgRotate(rotation);
   vgTranslate(-48, -48);
@@ -89,6 +94,6 @@ int update() {
 }
 
 int rotary_changed(int delta) {
-  rotation += delta * -2.0f;
+  rotation += delta * 2.0f;
   return 0;
 }
