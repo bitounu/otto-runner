@@ -5,8 +5,6 @@
 #define LOG_INFO 1
 #include <stdint.h>
 #include <stdio.h>
-#include <core/error.h>
-#include <core/memory.h>
 
 
 #endif

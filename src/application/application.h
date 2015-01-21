@@ -3,7 +3,7 @@
 #include <pthread.h>
 
 #define STAK_ENABLE_SEPS114A 1
-#define STAK_ENABLE_DYLIBS 0
+#define STAK_ENABLE_DYLIBS 1
 
 #if STAK_ENABLE_SEPS114A
 	#include <graphics/canvas/canvas.h>

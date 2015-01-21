@@ -22,6 +22,7 @@
 
 static volatile sig_atomic_t terminate;
 static void *lib_handle;
+#define stak_log //
 
 struct stak_state_s{
     int (*init)();
@@ -128,7 +129,7 @@ void* update_encoder(void* arg) {
                      | bcm2835_gpio_lev(pin_rotary_b);
 
         encoder_delta = encoding_matrix[last_encoded_value][encoded];
-        
+
         //if( encoder_last_delta == encoder_value) {
             encoder_value += encoder_delta;
             last_encoded_value = encoded;
@@ -265,7 +266,7 @@ int stak_application_run(struct stak_application_s* application) {
         frames_this_second++;
         current_time = stak_core_get_time();
 
-        
+
         if(current_time > last_time + 1000000) {
             frames_per_second = frames_this_second;
             frames_per_second = frames_per_second;
@@ -323,12 +324,12 @@ int stak_application_run(struct stak_application_s* application) {
                 struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
                 if ( event->mask & IN_CLOSE_WRITE ) {
                     if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
-                        
+
                         // if shutdown method exists, run it
                         if(app_state.shutdown) {
                             app_state.shutdown();
                         }
-                        
+
                         // close currently open lib and reload it
                         lib_close(&app_state);
                         lib_open(application->plugin_name, &app_state);

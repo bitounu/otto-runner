@@ -1,4 +1,4 @@
 
-MODES=	src/modes/ces/ces.c
+MODES=	src/modes/test-svg/test-svg.cpp
 
 include Makefile-common.inc

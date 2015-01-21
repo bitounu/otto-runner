@@ -52,27 +52,12 @@ MAIN_SRCS=		src/main.c \
 				src/application/application.c \
 				lib/graphics/canvas/canvas.c \
 				lib/graphics/seps114a/seps114a.c \
-				lib/libshapes/libshapes.c \
-				lib/raspberrypi-omxcam/src/camera.c \
-				lib/raspberrypi-omxcam/src/video.c \
-				lib/raspberrypi-omxcam/src/core.c \
-				lib/raspberrypi-omxcam/src/still.c \
-				lib/raspberrypi-omxcam/src/utils.c \
-				lib/raspberrypi-omxcam/src/version.c \
-				lib/raspberrypi-omxcam/src/event.c \
-				lib/raspberrypi-omxcam/src/error.c \
-				lib/raspberrypi-omxcam/src/h264.c \
-				lib/raspberrypi-omxcam/src/dump_omx.c \
-				lib/raspberrypi-omxcam/src/debug.c \
-				lib/raspberrypi-omxcam/src/jpeg.c \
-				src/modes/ces/otto_gui.c \
-				src/modes/ces/ces_utils.c \
-				src/modes/ces/ces.c
+				lib/libshapes/libshapes.c
 
 API_SRCS=		$(MODES)
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
-API_OBJS=		$(patsubst %.c,	build/%.o,	$(API_SRCS))
-API_OUTPUT=		$(patsubst %.c,	build/%.so,	$(API_SRCS))
+API_OBJS=			$(patsubst %.cpp,	build/%.o,	$(API_SRCS))
+API_OUTPUT=		$(patsubst %.cpp,	build/%.so,	$(API_SRCS))
 ALL_OBJS=		$(MAIN_OBJS) $(API_OBJS)
 
 .SECONDARY:  $(ALL_OBJS)
@@ -83,28 +68,21 @@ all: header $(MAIN_BIN) $(API_OUTPUT)
 header:
 	@echo $(HEADER)
 
-build/%.o: %.c
-	@echo $(BUILDING)
-	@mkdir -p `dirname $@`
-	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g -Wno-deprecated-declarations || (echo $(FAILURE) && false)
-
-build/%.so: build/%.o $(API_EXTRA_OBJS)
-	@echo $(BUILDING_DL)
-	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -p -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread
-
-
 $(MAIN_BIN): $(MAIN_OBJS)
 	@echo $(BUILDING_DL)
 	@$(CC)  -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -p -g -Wl,--no-whole-archive -rdynamic
 
-%.a: $(MAIN_OBJS)
-	@$(AR) r $@ $<
+build/%.o: %.c
+	@echo $(BUILDING)
+	@mkdir -p `dirname $@`
+	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g
 
-run: $(MAIN_BIN)
-	@./$(MAIN_BIN)
 
-strip: $(MAIN_BIN)
-	# @$(STRIP) $@
-	# @$(STRIP) build/$(notdir $@)
-clean:
-	@rm -f $(MAIN_BIN) $(API_OUTPUT) $(ALL_OBJS)
+build/%.o: %.cpp
+	@echo $(BUILDING)
+	@mkdir -p `dirname $@`
+	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g -std=c++0x
+
+build/%.so: build/%.o
+	@echo $(BUILDING_DL)
+	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -p -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread -lstdc++
