@@ -81,8 +81,8 @@ build/%.o: %.c
 build/%.o: %.cpp
 	@echo $(BUILDING)
 	@mkdir -p `dirname $@`
-	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g -std=c++0x
+	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g -std=c++1y -stdlib=libc++
 
 build/%.so: build/%.o
 	@echo $(BUILDING_DL)
-	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -p -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread -lstdc++
+	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -p -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread -lc++
