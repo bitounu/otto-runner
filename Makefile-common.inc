@@ -70,7 +70,7 @@ header:
 
 $(MAIN_BIN): $(MAIN_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC)  -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -p -g -Wl,--no-whole-archive -rdynamic
+	@$(CC) -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -p -g -Wl,--no-whole-archive -rdynamic
 
 build/%.o: %.c
 	@echo $(BUILDING)
@@ -81,8 +81,8 @@ build/%.o: %.c
 build/%.o: %.cpp
 	@echo $(BUILDING)
 	@mkdir -p `dirname $@`
-	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g -std=c++1y -stdlib=libc++
+	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -g -std=c++1y -stdlib=libc++
 
 build/%.so: build/%.o
 	@echo $(BUILDING_DL)
-	@$(CC) $(CFLAGS) -shared -o build/$(notdir $@) -p -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread -lc++
+	@$(CXX) $(CFLAGS) -shared -o build/$(notdir $@) -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread -lc++abi
