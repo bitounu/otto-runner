@@ -77,6 +77,7 @@ stak_seps114a_s* stak_seps114a_create() {
         printf("Failing on bcm2835_init\n");
         return 0;
     }
+
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_RST, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(STAK_SEPS114A_PIN_DC, BCM2835_GPIO_FSEL_OUTP);
 #ifdef STAK_SEPS114A_USE_SPIDEV
@@ -180,7 +181,6 @@ stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_write_command_value(device, SEPS114A_DISPLAY_ON_OFF,0x01);
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x00);
     printf("Display enabled\n");
-
     device->framebuffer = NULL;
     //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
@@ -250,6 +250,7 @@ inline uint32_t swap_rgb32 (uint32_t rgb)
 }
 
 int stak_seps114a_update(stak_seps114a_s* device) {
+
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x01);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_X1,0x00);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_X2,0x5F);
