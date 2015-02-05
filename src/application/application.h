@@ -25,6 +25,19 @@ int stak_application_run();
 int stak_application_terminate();
 int stak_application_get_is_terminating();
 
+
+int get_shutter_button_pressed();
+int get_shutter_button_released();
+int get_shutter_button_state();
+
+int get_power_button_pressed();
+int get_power_button_released();
+int get_power_button_state();
+
+int get_crank_pressed();
+int get_crank_released();
+int get_crank_state();
+
 uint64_t stak_core_get_time();
 
 int stak_get_rotary_value();

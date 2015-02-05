@@ -25,11 +25,17 @@ static void *lib_handle;
 #define stak_log //
 
 struct stak_state_s{
-    int (*init)();
-    int (*update)();
-    int (*shutdown)();
-    int (*update_display) (uint8_t*, int, int, int);
-    int (*rotary_changed) (int delta);
+    int ( *init )                       ( void );                   // int init                     ( void );
+    int ( *update )                     ( float delta );            // int update                   ( float delta );
+    int ( *draw )                       ( void );                   // int draw                     ( void );
+    int ( *shutdown )                   ( void );                   // int shutdown                 ( void );
+    int ( *shutter_button_released )    ( void );                   // int shutter_button_release   ( void );
+    int ( *shutter_button_pressed )     ( void );                   // int shutter_button_press     ( void );
+    int ( *power_button_released )      ( void );                   // int power_button_release     ( void );
+    int ( *power_button_pressed )       ( void );                   // int power_button_press       ( void );
+    int ( *crank_released )             ( void );                   // int crank_up                 ( void );
+    int ( *crank_pressed )              ( void );                   // int crank_down               ( void );
+    int ( *crank_rotated )              ( int amount );             // int crank_rotated            ( int amount );
 };
 
 static struct stak_state_s app_state;
@@ -43,20 +49,98 @@ static struct stak_state_s app_state;
 #endif
 
 
+const int pin_shutter_button = 16;
+const int pin_power_button = 4;
 const int pin_rotary_button = 17;
 const int pin_rotary_a = 15;
 const int pin_rotary_b = 14;
 
-int value_shutter = LOW;
-int value_rotary_left = LOW;
-int value_rotary_right = LOW;
-int rotary_switch_State = 1;
+static int rotary_button_state = 1;
+static int shutter_button_state = 1;
+static int power_button_state = 0;
 volatile int last_encoded_value = 0, encoder_value = 0, encoder_delta = 0, encoder_last_delta = 0;
+
+
+//
+// shutter button
+//
+int get_shutter_button_pressed() {
+
+    // if shutter gpio has changed
+    // change shutter gpio state and
+    // return true if shutter state is LOW
+    return ( ( bcm2835_gpio_lev(pin_shutter_button) != shutter_button_state )
+        && ( ( shutter_button_state = shutter_button_state ^ 1 ) == 0 ) );
+}
+
+int get_shutter_button_released() {
+
+    // if shutter gpio has changed
+    // change shutter gpio state and
+    // return true if shutter state is HIGH
+    return ( ( bcm2835_gpio_lev(pin_shutter_button) != shutter_button_state )
+        && ( ( shutter_button_state = shutter_button_state ^ 1 ) == 1 ) );
+}
+int get_shutter_button_state() {
+    return ( shutter_button_state == 1 );
+}
+
+
+//
+// power button
+//
+int get_power_button_pressed() {
+
+    // if shutter gpio has changed
+    // change shutter gpio state and
+    // return true if shutter state is LOW  
+    return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
+        && ( ( power_button_state = power_button_state ^ 1 ) == 0 ) );
+}
+
+int get_power_button_released() {
+
+    // if shutter gpio has changed
+    // change shutter gpio state and
+    // return true if shutter state is HIGH
+    return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
+        && ( ( power_button_state = power_button_state ^ 1 ) == 1 ) );
+}
+int get_power_button_state() {
+    return ( power_button_state == 1 );
+}
+
+//
+// crank
+//
+int get_crank_pressed() {
+
+    // if shutter gpio has changed
+    // change shutter gpio state and
+    // return true if shutter state is LOW
+    return ( ( bcm2835_gpio_lev(pin_rotary_button) != rotary_button_state )
+        && ( ( rotary_button_state = rotary_button_state ^ 1 ) == 0 ) );
+}
+
+int get_crank_released() {
+
+    // if shutter gpio has changed
+    // change shutter gpio state and
+    // return true if shutter state is HIGH
+    return ( ( bcm2835_gpio_lev(pin_rotary_button) != rotary_button_state )
+        && ( ( rotary_button_state = rotary_button_state ^ 1 ) == 1 ) );
+}
+int get_crank_state() {
+    return ( rotary_button_state == 1 );
+}
+
+
+
 
 //
 // lib_open
 //
-int lib_open(char* plugin_name, struct stak_state_s* app_state) {
+int lib_open(const char* plugin_name, struct stak_state_s* app_state) {
     char *error;
 
     lib_handle = dlopen (plugin_name, RTLD_LAZY);
@@ -66,23 +150,50 @@ int lib_open(char* plugin_name, struct stak_state_s* app_state) {
         exit(1);
     }
 
+    // int (*init)           ( void );
     app_state->init = dlsym(lib_handle, "init");
     if ((error = dlerror()) != NULL)  {
         fputs(error, stderr);
         exit(1);
     }
+
+    // int (*update)         ( float delta );
     app_state->update = dlsym(lib_handle, "update");
-    if ((error = dlerror()) != NULL)  {
-        app_state->update_display = 0;
-    }
-    app_state->update_display = dlsym(lib_handle, "update_display");
-    if ((error = dlerror()) != NULL)  {
-        app_state->update_display = 0;
-    }
-    app_state->rotary_changed = dlsym(lib_handle, "rotary_changed");
-    if ((error = dlerror()) != NULL)  {
-        app_state->rotary_changed = 0;
-    }
+    if ((error = dlerror()) != NULL) app_state->update = 0;
+
+    // int (*draw)           ( void );
+    app_state->draw = dlsym(lib_handle, "draw");
+    if ((error = dlerror()) != NULL) app_state->draw = 0;
+    
+    // int (*shutter_button_released)     ( void );
+    app_state->shutter_button_released = dlsym(lib_handle, "shutter_button_released");
+    if ((error = dlerror()) != NULL) app_state->shutter_button_released = 0;
+    
+    // int (*shutter_button_pressed)   ( void );
+    app_state->shutter_button_pressed = dlsym(lib_handle, "shutter_button_pressed");
+    if ((error = dlerror()) != NULL) app_state->shutter_button_pressed = 0;
+
+    // int (*power_button_released)       ( void );
+    app_state->power_button_released = dlsym(lib_handle, "power_button_released");
+    if ((error = dlerror()) != NULL) app_state->power_button_released = 0;
+
+    // int (*power_button_pressed)     ( void );
+    app_state->power_button_pressed = dlsym(lib_handle, "power_button_pressed");
+    if ((error = dlerror()) != NULL) app_state->power_button_pressed = 0;
+
+    // int (*crank_pressed)       ( void );
+    app_state->crank_pressed = dlsym(lib_handle, "crank_pressed");
+    if ((error = dlerror()) != NULL) app_state->crank_pressed = 0;
+
+    // int (*crank_released)     ( void );
+    app_state->crank_released = dlsym(lib_handle, "crank_released");
+    if ((error = dlerror()) != NULL) app_state->crank_released = 0;
+
+    // int (*crank_rotated)  ( int amount );
+    app_state->crank_rotated = dlsym(lib_handle, "crank_rotated");
+    if ((error = dlerror()) != NULL) app_state->crank_rotated = 0;
+
+    // int (*shutdown)       ( void );
     app_state->shutdown = dlsym(lib_handle, "shutdown");
     if ((error = dlerror()) != NULL)  {
         fputs(error, stderr);
@@ -114,12 +225,6 @@ void* update_encoder(void* arg) {
         { 0, 1,-1, 0}
     };
 
-    bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
-    // set pin pull up/down status
-    bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
-    bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
-
     uint64_t last_time, current_time, delta_time;
     delta_time = last_time = current_time = stak_core_get_time();
     while(!stak_application_get_is_terminating()) {
@@ -130,14 +235,8 @@ void* update_encoder(void* arg) {
 
         encoder_delta = encoding_matrix[last_encoded_value][encoded];
 
-        //if( encoder_last_delta == encoder_value) {
-            encoder_value += encoder_delta;
-            last_encoded_value = encoded;
-        /*}
-        else {
-            encoder_last_delta = encoder_value;
-            last_encoded_value = encoded;
-        }*/
+        encoder_value += encoder_delta;
+        last_encoded_value = encoded;
 
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
@@ -251,6 +350,19 @@ int stak_application_run(struct stak_application_s* application) {
     }
 #endif
 
+
+    bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(pin_rotary_button, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_fsel(pin_power_button, BCM2835_GPIO_FSEL_INPT);
+
+    // set pin pull up/down status
+    bcm2835_gpio_set_pud(pin_shutter_button, BCM2835_GPIO_PUD_UP);
+    bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
+    bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
+    bcm2835_gpio_set_pud(pin_rotary_button, BCM2835_GPIO_PUD_UP);
+
     pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
 
         // setup sigterm handler
@@ -275,26 +387,45 @@ int stak_application_run(struct stak_application_s* application) {
             stak_log("FPS: %i", frames_per_second);
         }
 
-        if(app_state.rotary_changed) {
+        if(app_state.crank_rotated) {
             if(rotary_last_value != encoder_value) {
-                app_state.rotary_changed(rotary_last_value - encoder_value);
+                app_state.crank_rotated(rotary_last_value - encoder_value);
                 rotary_last_value = encoder_value;
             }
         }
 
+        if( ( app_state.shutter_button_released ) && get_crank_released() )
+                app_state.shutter_button_released();
+
+        if( ( app_state.shutter_button_pressed ) && get_shutter_button_pressed() )
+                app_state.shutter_button_pressed();
+
+        if( ( app_state.power_button_released ) && get_power_button_released() )
+                app_state.power_button_released();
+
+        if( ( app_state.power_button_pressed ) && get_power_button_pressed() )
+                app_state.power_button_pressed();
+
+        if( ( app_state.crank_released ) && get_crank_released() )
+                app_state.crank_released();
+
+        if( ( app_state.crank_pressed ) && get_crank_pressed() )
+                app_state.crank_pressed();
+
+
         if(app_state.update) {
-            app_state.update();
+            app_state.update( ( ( float ) delta_time ) / 1000000000.0f );
+        }
+
+        if(app_state.draw) {
+            app_state.draw();
         }
 
 #if STAK_ENABLE_SEPS114A
-        if(app_state.update_display) {
-            app_state.update_display( (uint8_t*) application->display->framebuffer, 16, 2, 2);
-        } else {
     #if 1
-            stak_canvas_swap(application->canvas);
-            stak_canvas_copy(application->canvas, (uint8_t*)application->display->framebuffer, 96 * 2);
+        stak_canvas_swap(application->canvas);
+        stak_canvas_copy(application->canvas, (uint8_t*)application->display->framebuffer, 96 * 2);
     #endif
-        }
     #if 1
         stak_seps114a_update(application->display);
     #endif
