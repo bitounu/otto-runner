@@ -93,7 +93,7 @@ int get_power_button_pressed() {
 
     // if shutter gpio has changed
     // change shutter gpio state and
-    // return true if shutter state is LOW  
+    // return true if shutter state is LOW
     return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
         && ( ( power_button_state = power_button_state ^ 1 ) == 0 ) );
 }
@@ -164,11 +164,11 @@ int lib_open(const char* plugin_name, struct stak_state_s* app_state) {
     // int (*draw)           ( void );
     app_state->draw = dlsym(lib_handle, "draw");
     if ((error = dlerror()) != NULL) app_state->draw = 0;
-    
+
     // int (*shutter_button_released)     ( void );
     app_state->shutter_button_released = dlsym(lib_handle, "shutter_button_released");
     if ((error = dlerror()) != NULL) app_state->shutter_button_released = 0;
-    
+
     // int (*shutter_button_pressed)   ( void );
     app_state->shutter_button_pressed = dlsym(lib_handle, "shutter_button_pressed");
     if ((error = dlerror()) != NULL) app_state->shutter_button_pressed = 0;
@@ -369,8 +369,8 @@ int stak_application_run(struct stak_application_s* application) {
     action.sa_handler = stak_application_terminate_cb;
     sigaction(SIGINT, &action, NULL);
 
-    uint64_t last_time, current_time, delta_time;
-    delta_time = last_time = current_time = stak_core_get_time();
+    uint64_t last_second_time, last_frame_time, current_time, delta_time;
+    delta_time = last_second_time = last_frame_time = current_time = stak_core_get_time();
     int frames_this_second = 0;
     int frames_per_second = 0;
     int rotary_last_value = 0;
@@ -379,11 +379,11 @@ int stak_application_run(struct stak_application_s* application) {
         current_time = stak_core_get_time();
 
 
-        if(current_time > last_time + 1000000) {
+        if(current_time > last_second_time + 1000000) {
             frames_per_second = frames_this_second;
             frames_per_second = frames_per_second;
             frames_this_second = 0;
-            last_time = current_time;
+            last_second_time = current_time;
             stak_log("FPS: %i", frames_per_second);
         }
 
@@ -413,8 +413,11 @@ int stak_application_run(struct stak_application_s* application) {
                 app_state.crank_pressed();
 
 
+        uint64_t frame_delta_time = current_time - last_frame_time;
+        last_frame_time = current_time;
+
         if(app_state.update) {
-            app_state.update( ( ( float ) delta_time ) / 1000000000.0f );
+            app_state.update( ( ( float ) frame_delta_time ) / 1000000.0f );
         }
 
         if(app_state.draw) {
