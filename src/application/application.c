@@ -417,7 +417,8 @@ int stak_application_run(struct stak_application_s* application) {
         last_frame_time = current_time;
 
         if(app_state.update) {
-            app_state.update( ( ( float ) frame_delta_time ) / 1000000.0f );
+            float dt = ((float)frame_delta_time) / 1000000.0f;
+            app_state.update(dt);
         }
 
         if(app_state.draw) {
@@ -435,8 +436,8 @@ int stak_application_run(struct stak_application_s* application) {
 #endif
 
         delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(33000000L, 33000000L - max(0,delta_time));
-        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+        uint64_t sleep_time = min(33000000L, 33000000L - max(0L, delta_time * 1000L));
+        nanosleep((struct timespec[]){ { 0, sleep_time } }, NULL);
 
 #if STAK_ENABLE_DYLIBS
         char* plugin_file_name = 0;
