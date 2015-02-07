@@ -394,7 +394,7 @@ int stak_application_run(struct stak_application_s* application) {
             }
         }
 
-        if( ( app_state.shutter_button_released ) && get_crank_released() )
+        if( ( app_state.shutter_button_released ) && get_shutter_button_released() )
                 app_state.shutter_button_released();
 
         if( ( app_state.shutter_button_pressed ) && get_shutter_button_pressed() )
