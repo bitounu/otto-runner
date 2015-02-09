@@ -69,9 +69,12 @@ int get_shutter_button_pressed() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is LOW
-    return   ( ( bcm2835_gpio_eds(pin_shutter_button)           // is event detected
-            && ( bcm2835_gpio_lev(pin_shutter_button) == 0 )    // text if level is low
-            && bcm2835_gpio_set_eds(pin_shutter_button) );      // and clear EDS
+    if (     bcm2835_gpio_eds(pin_shutter_button)           // is event detected
+        && ( bcm2835_gpio_lev(pin_shutter_button) == 0 ) ) {// test if level is low
+        bcm2835_gpio_set_eds(pin_shutter_button);           // and clear EDS
+        return 1;
+    }
+    else return 0;
 }
 
 int get_shutter_button_released() {
@@ -79,9 +82,12 @@ int get_shutter_button_released() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is HIGH
-    return   ( ( bcm2835_gpio_eds(pin_shutter_button)           // is event detected
-            && ( bcm2835_gpio_lev(pin_shutter_button) == 1 )    // text if level is HIGH
-            && bcm2835_gpio_set_eds(pin_shutter_button) );      // and clear EDS
+    if (     bcm2835_gpio_eds(pin_shutter_button)           // is event detected
+        && ( bcm2835_gpio_lev(pin_shutter_button) == 1 ) ) {// test if level is low
+        bcm2835_gpio_set_eds(pin_shutter_button);           // and clear EDS
+        return 1;
+    }
+    else return 0;
 }
 int get_shutter_button_state() {
     return bcm2835_gpio_lev(pin_shutter_button);
@@ -96,9 +102,12 @@ int get_power_button_pressed() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is LOW
-    return   ( ( bcm2835_gpio_eds(pin_power_button)           // is event detected
-            && ( bcm2835_gpio_lev(pin_power_button) == 0 )    // text if level is LOW
-            && bcm2835_gpio_set_eds(pin_power_button) );      // and clear EDS
+    if (     bcm2835_gpio_eds(pin_power_button)             // is event detected
+        && ( bcm2835_gpio_lev(pin_power_button) == 0 ) ) {  // test if level is low
+        bcm2835_gpio_set_eds(pin_power_button);             // and clear EDS
+        return 1;
+    }
+    else return 0;
 }
 
 int get_power_button_released() {
@@ -106,9 +115,12 @@ int get_power_button_released() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is HIGH
-    return   ( ( bcm2835_gpio_eds(pin_power_button)           // is event detected
-            && ( bcm2835_gpio_lev(pin_power_button) == 1 )    // text if level is HIGH
-            && bcm2835_gpio_set_eds(pin_power_button) );      // and clear EDS
+    if (     bcm2835_gpio_eds(pin_power_button)             // is event detected
+        && ( bcm2835_gpio_lev(pin_power_button) == 1 ) ) {  // test if level is low
+        bcm2835_gpio_set_eds(pin_power_button);             // and clear EDS
+        return 1;
+    }
+    else return 0;
 }
 int get_power_button_state() {
     return bcm2835_gpio_lev(pin_power_button);
@@ -122,9 +134,12 @@ int get_crank_pressed() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is LOW
-    return   ( ( bcm2835_gpio_eds(pin_rotary_button)           // is event detected
-            && ( bcm2835_gpio_lev(pin_rotary_button) == 0 )    // text if level is LOW
-            && bcm2835_gpio_set_eds(pin_rotary_button) );      // and clear EDS
+    if (     bcm2835_gpio_eds(pin_rotary_button)            // is event detected
+        && ( bcm2835_gpio_lev(pin_rotary_button) == 0 ) ) { // test if level is low
+        bcm2835_gpio_set_eds(pin_rotary_button);            // and clear EDS
+        return 1;
+    }
+    else return 0;
 }
 
 int get_crank_released() {
@@ -132,9 +147,12 @@ int get_crank_released() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is HIGH
-    return   ( ( bcm2835_gpio_eds(pin_rotary_button)           // is event detected
-            && ( bcm2835_gpio_lev(pin_rotary_button) == 1 )    // text if level is LOW
-            && bcm2835_gpio_set_eds(pin_rotary_button) );      // and clear EDS
+    if (     bcm2835_gpio_eds(pin_rotary_button)            // is event detected
+        && ( bcm2835_gpio_lev(pin_rotary_button) == 1 ) ) { // test if level is low
+        bcm2835_gpio_set_eds(pin_rotary_button);            // and clear EDS
+        return 1;
+    }
+    else return 0;
 }
 int get_crank_state() {
     return bcm2835_gpio_lev(pin_rotary_button);
