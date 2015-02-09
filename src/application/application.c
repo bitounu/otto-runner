@@ -69,8 +69,9 @@ int get_shutter_button_pressed() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is LOW
-    return ( ( bcm2835_gpio_lev(pin_shutter_button) != shutter_button_state )
-        && ( ( shutter_button_state = shutter_button_state ^ 1 ) == 0 ) );
+    return   ( ( bcm2835_gpio_eds(pin_shutter_button)           // is event detected
+            && ( bcm2835_gpio_lev(pin_shutter_button) == 0 )    // text if level is low
+            && bcm2835_gpio_set_eds(pin_shutter_button) );      // and clear EDS
 }
 
 int get_shutter_button_released() {
@@ -78,11 +79,12 @@ int get_shutter_button_released() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is HIGH
-    return ( ( bcm2835_gpio_lev(pin_shutter_button) != shutter_button_state )
-        && ( ( shutter_button_state = shutter_button_state ^ 1 ) == 1 ) );
+    return   ( ( bcm2835_gpio_eds(pin_shutter_button)           // is event detected
+            && ( bcm2835_gpio_lev(pin_shutter_button) == 1 )    // text if level is HIGH
+            && bcm2835_gpio_set_eds(pin_shutter_button) );      // and clear EDS
 }
 int get_shutter_button_state() {
-    return ( shutter_button_state == 1 );
+    return bcm2835_gpio_lev(pin_shutter_button);
 }
 
 
@@ -94,8 +96,9 @@ int get_power_button_pressed() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is LOW
-    return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
-        && ( ( power_button_state = power_button_state ^ 1 ) == 0 ) );
+    return   ( ( bcm2835_gpio_eds(pin_power_button)           // is event detected
+            && ( bcm2835_gpio_lev(pin_power_button) == 0 )    // text if level is LOW
+            && bcm2835_gpio_set_eds(pin_power_button) );      // and clear EDS
 }
 
 int get_power_button_released() {
@@ -103,11 +106,12 @@ int get_power_button_released() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is HIGH
-    return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
-        && ( ( power_button_state = power_button_state ^ 1 ) == 1 ) );
+    return   ( ( bcm2835_gpio_eds(pin_power_button)           // is event detected
+            && ( bcm2835_gpio_lev(pin_power_button) == 1 )    // text if level is HIGH
+            && bcm2835_gpio_set_eds(pin_power_button) );      // and clear EDS
 }
 int get_power_button_state() {
-    return ( power_button_state == 1 );
+    return bcm2835_gpio_lev(pin_power_button);
 }
 
 //
@@ -118,8 +122,9 @@ int get_crank_pressed() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is LOW
-    return ( ( bcm2835_gpio_lev(pin_rotary_button) != rotary_button_state )
-        && ( ( rotary_button_state = rotary_button_state ^ 1 ) == 0 ) );
+    return   ( ( bcm2835_gpio_eds(pin_rotary_button)           // is event detected
+            && ( bcm2835_gpio_lev(pin_rotary_button) == 0 )    // text if level is LOW
+            && bcm2835_gpio_set_eds(pin_rotary_button) );      // and clear EDS
 }
 
 int get_crank_released() {
@@ -127,11 +132,12 @@ int get_crank_released() {
     // if shutter gpio has changed
     // change shutter gpio state and
     // return true if shutter state is HIGH
-    return ( ( bcm2835_gpio_lev(pin_rotary_button) != rotary_button_state )
-        && ( ( rotary_button_state = rotary_button_state ^ 1 ) == 1 ) );
+    return   ( ( bcm2835_gpio_eds(pin_rotary_button)           // is event detected
+            && ( bcm2835_gpio_lev(pin_rotary_button) == 1 )    // text if level is LOW
+            && bcm2835_gpio_set_eds(pin_rotary_button) );      // and clear EDS
 }
 int get_crank_state() {
-    return ( rotary_button_state == 1 );
+    return bcm2835_gpio_lev(pin_rotary_button);
 }
 
 
@@ -362,6 +368,15 @@ int stak_application_run(struct stak_application_s* application) {
     bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
     bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
     bcm2835_gpio_set_pud(pin_rotary_button, BCM2835_GPIO_PUD_UP);
+
+    bcm2835_gpio_fen(pin_shutter_button);
+    bcm2835_gpio_ren(pin_shutter_button);
+
+    bcm2835_gpio_fen(pin_power_button);
+    bcm2835_gpio_ren(pin_power_button);
+
+    bcm2835_gpio_fen(pin_rotary_button);
+    bcm2835_gpio_ren(pin_rotary_button);
 
     pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
 
