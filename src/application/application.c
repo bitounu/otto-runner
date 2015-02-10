@@ -55,86 +55,64 @@ const int pin_rotary_button = 17;
 const int pin_rotary_a = 15;
 const int pin_rotary_b = 14;
 
-static int rotary_button_state = 1;
-static int shutter_button_state = 1;
-static int power_button_state = 0;
+typedef struct {
+    int state, is_changed;
+} button_state;
+
+static button_state rotary_button = { 1, 0 };
+static button_state shutter_button = { 1, 0 };
+static button_state power_button = { 1, 0 };
+
 volatile int last_encoded_value = 0, encoder_value = 0, encoder_delta = 0, encoder_last_delta = 0;
 
+
+int check_button_changed(button_state *button, int pin) {
+    if (!button->is_changed) {
+        int state = bcm2835_gpio_lev(pin);
+        button->is_changed = state != button->state;
+        button->state = state;
+    }
+    return button->is_changed;
+}
 
 //
 // shutter button
 //
 int get_shutter_button_pressed() {
-
-    // if shutter gpio has changed
-    // change shutter gpio state and
-    // return true if shutter state is LOW
-    return ( ( bcm2835_gpio_lev(pin_shutter_button) != shutter_button_state )
-        && ( ( shutter_button_state = shutter_button_state ^ 1 ) == 0 ) );
+    return check_button_changed(&shutter_button, pin_shutter_button) && shutter_button.state == 0;
 }
-
 int get_shutter_button_released() {
-
-    // if shutter gpio has changed
-    // change shutter gpio state and
-    // return true if shutter state is HIGH
-    return ( ( bcm2835_gpio_lev(pin_shutter_button) != shutter_button_state )
-        && ( ( shutter_button_state = shutter_button_state ^ 1 ) == 1 ) );
+    return check_button_changed(&shutter_button, pin_shutter_button) && shutter_button.state == 1;
 }
 int get_shutter_button_state() {
-    return ( shutter_button_state == 1 );
+    return ( shutter_button.state == 1 );
 }
-
 
 //
 // power button
 //
 int get_power_button_pressed() {
-
-    // if shutter gpio has changed
-    // change shutter gpio state and
-    // return true if shutter state is LOW
-    return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
-        && ( ( power_button_state = power_button_state ^ 1 ) == 0 ) );
+    return check_button_changed(&power_button, pin_power_button) && power_button.state == 0;
 }
-
 int get_power_button_released() {
-
-    // if shutter gpio has changed
-    // change shutter gpio state and
-    // return true if shutter state is HIGH
-    return ( ( bcm2835_gpio_lev(pin_power_button) != power_button_state )
-        && ( ( power_button_state = power_button_state ^ 1 ) == 1 ) );
+    return check_button_changed(&power_button, pin_power_button) && power_button.state == 1;
 }
 int get_power_button_state() {
-    return ( power_button_state == 1 );
+    return ( power_button.state == 1 );
 }
 
 //
 // crank
 //
 int get_crank_pressed() {
-
-    // if shutter gpio has changed
-    // change shutter gpio state and
-    // return true if shutter state is LOW
-    return ( ( bcm2835_gpio_lev(pin_rotary_button) != rotary_button_state )
-        && ( ( rotary_button_state = rotary_button_state ^ 1 ) == 0 ) );
+    return check_button_changed(&rotary_button, pin_rotary_button) && rotary_button.state == 1;
 }
-
 int get_crank_released() {
-
-    // if shutter gpio has changed
-    // change shutter gpio state and
-    // return true if shutter state is HIGH
-    return ( ( bcm2835_gpio_lev(pin_rotary_button) != rotary_button_state )
-        && ( ( rotary_button_state = rotary_button_state ^ 1 ) == 1 ) );
+    return check_button_changed(&rotary_button, pin_rotary_button) && rotary_button.state == 0;
 }
 int get_crank_state() {
-    return ( rotary_button_state == 1 );
+    return ( rotary_button.state == 1 );
 }
-
-
 
 
 //
@@ -393,6 +371,11 @@ int stak_application_run(struct stak_application_s* application) {
                 rotary_last_value = encoder_value;
             }
         }
+
+
+        shutter_button.is_changed = 0;
+        power_button.is_changed = 0;
+        rotary_button.is_changed = 0;
 
         if( ( app_state.shutter_button_released ) && get_shutter_button_released() )
                 app_state.shutter_button_released();
