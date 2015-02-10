@@ -24,7 +24,7 @@ static volatile sig_atomic_t terminate;
 static void *lib_handle;
 #define stak_log //
 
-struct stak_state_s{
+typedef struct {
     int ( *init )                       ( void );                   // int init                     ( void );
     int ( *update )                     ( float delta );            // int update                   ( float delta );
     int ( *draw )                       ( void );                   // int draw                     ( void );
@@ -36,18 +36,11 @@ struct stak_state_s{
     int ( *crank_released )             ( void );                   // int crank_up                 ( void );
     int ( *crank_pressed )              ( void );                   // int crank_down               ( void );
     int ( *crank_rotated )              ( int amount );             // int crank_rotated            ( int amount );
-};
+} stak_state_s;
 
-static struct stak_state_s app_state;
-
-#if STAK_ENABLE_DYLIBS
-#else
-    extern int init();
-    extern int shutdown();
-    extern int update();
-    //extern int rotary_changed(int);
-#endif
-
+static stak_state_s menu_state;
+static stak_state_s mode_state;
+static stak_state_s *active_mode = &menu_state;
 
 const int pin_shutter_button = 16;
 const int pin_power_button = 4;
@@ -118,7 +111,7 @@ int get_crank_state() {
 //
 // lib_open
 //
-int lib_open(const char* plugin_name, struct stak_state_s* app_state) {
+int lib_open(const char* plugin_name, stak_state_s* app_state) {
     char *error;
 
     lib_handle = dlopen (plugin_name, RTLD_LAZY);
@@ -184,7 +177,7 @@ int lib_open(const char* plugin_name, struct stak_state_s* app_state) {
 //
 // lib_close
 //
-int lib_close(struct stak_state_s* app_state) {
+int lib_close(stak_state_s* app_state) {
     if (!lib_handle) {
         printf("No library loaded\n");
     }
@@ -233,6 +226,19 @@ uint64_t stak_core_get_time() {
 }
 
 //
+// activate_mode
+//
+static void activate_mode(stak_state_s *mode) {
+    active_mode = mode;
+}
+
+static stak_state_s *mode_queued_for_activation = 0;
+
+void stak_activate_mode() {
+    mode_queued_for_activation = &mode_state;
+}
+
+//
 // stak_application_terminate_cb
 //
 void stak_application_terminate_cb(int signum)
@@ -244,11 +250,13 @@ void stak_application_terminate_cb(int signum)
 //
 // stak_application_create
 //
-struct stak_application_s* stak_application_create(char* plugin_name) {
+struct stak_application_s* stak_application_create(char* menu_filename, char* mode_filename) {
 
     struct stak_application_s* application = calloc(1, sizeof(struct stak_application_s));
-    application->plugin_name = malloc( strlen( plugin_name ) + 1 );
-    strcpy( application->plugin_name, plugin_name );
+    application->menu_filename = malloc( strlen( menu_filename ) + 1 );
+    strcpy( application->menu_filename, menu_filename );
+    application->mode_filename = malloc( strlen( mode_filename ) + 1 );
+    strcpy( application->mode_filename, mode_filename );
 
 #if STAK_ENABLE_SEPS114A
     application->display = stak_seps114a_create();
@@ -261,17 +269,21 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
     }
 #endif
 
-#if STAK_ENABLE_DYLIBS
-    lib_open(application->plugin_name, &app_state);
-#else
-    app_state.init = init;
-    app_state.shutdown = shutdown;
-    app_state.update = update;
-    //app_state.rotary_changed = rotary_changed;
-#endif
-    if(app_state.init) {
-        app_state.init();
+    lib_open(application->menu_filename, &menu_state);
+    lib_open(application->mode_filename, &mode_state);
+
+    if(menu_state.init) {
+        menu_state.init();
     }
+
+    // TODO(ryan): We will probably want to init the mode when it is first activated, but let's do
+    // it here for now.
+    if(mode_state.init) {
+        mode_state.init();
+    }
+
+    activate_mode(&menu_state);
+
     return application;
 }
 
@@ -280,9 +292,8 @@ struct stak_application_s* stak_application_create(char* plugin_name) {
 //
 int stak_application_destroy(struct stak_application_s* application) {
     // if shutdown method exists, run it
-    if(app_state.shutdown) {
-        app_state.shutdown();
-    }
+    if(menu_state.shutdown) menu_state.shutdown();
+    if(mode_state.shutdown) mode_state.shutdown();
 
     if(pthread_join(application->thread_hal_update, NULL)) {
         fprintf(stderr, "Error joining thread\n");
@@ -296,6 +307,7 @@ int stak_application_destroy(struct stak_application_s* application) {
     return 0;
 }
 
+
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
@@ -305,7 +317,7 @@ int stak_application_destroy(struct stak_application_s* application) {
 //
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
-#if STAK_ENABLE_DYLIBS
+
     int lib_fd = inotify_init();
     int lib_wd, lib_read_length;
     char lib_notify_buffer[BUF_LEN];
@@ -326,7 +338,6 @@ int stak_application_run(struct stak_application_s* application) {
         return -1;
 
     }
-#endif
 
 
     bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
@@ -352,10 +363,10 @@ int stak_application_run(struct stak_application_s* application) {
     int frames_this_second = 0;
     int frames_per_second = 0;
     int rotary_last_value = 0;
+
     while(!terminate) {
         frames_this_second++;
         current_time = stak_core_get_time();
-
 
         if(current_time > last_second_time + 1000000) {
             frames_per_second = frames_this_second;
@@ -365,9 +376,14 @@ int stak_application_run(struct stak_application_s* application) {
             stak_log("FPS: %i", frames_per_second);
         }
 
-        if(app_state.crank_rotated) {
+        if(mode_queued_for_activation) {
+            activate_mode(mode_queued_for_activation);
+            mode_queued_for_activation = 0;
+        }
+
+        if(active_mode->crank_rotated) {
             if(rotary_last_value != encoder_value) {
-                app_state.crank_rotated(rotary_last_value - encoder_value);
+                active_mode->crank_rotated(rotary_last_value - encoder_value);
                 rotary_last_value = encoder_value;
             }
         }
@@ -377,35 +393,40 @@ int stak_application_run(struct stak_application_s* application) {
         power_button.is_changed = 0;
         rotary_button.is_changed = 0;
 
-        if( ( app_state.shutter_button_released ) && get_shutter_button_released() )
-                app_state.shutter_button_released();
 
-        if( ( app_state.shutter_button_pressed ) && get_shutter_button_pressed() )
-                app_state.shutter_button_pressed();
+        if( ( active_mode->shutter_button_released ) && get_shutter_button_released() )
+                active_mode->shutter_button_released();
 
-        if( ( app_state.power_button_released ) && get_power_button_released() )
-                app_state.power_button_released();
+        if( ( active_mode->shutter_button_pressed ) && get_shutter_button_pressed() )
+                active_mode->shutter_button_pressed();
 
-        if( ( app_state.power_button_pressed ) && get_power_button_pressed() )
-                app_state.power_button_pressed();
+        if( get_power_button_pressed() ) {
+            activate_mode(&menu_state);
+        }
 
-        if( ( app_state.crank_released ) && get_crank_released() )
-                app_state.crank_released();
+        // if( ( active_mode->power_button_released ) && get_power_button_released() )
+        //         active_mode->power_button_released();
 
-        if( ( app_state.crank_pressed ) && get_crank_pressed() )
-                app_state.crank_pressed();
+        // if( ( active_mode->power_button_pressed ) && get_power_button_pressed() )
+        //         active_mode->power_button_pressed();
+
+        if( ( active_mode->crank_released ) && get_crank_released() )
+                active_mode->crank_released();
+
+        if( ( active_mode->crank_pressed ) && get_crank_pressed() )
+                active_mode->crank_pressed();
 
 
         uint64_t frame_delta_time = current_time - last_frame_time;
         last_frame_time = current_time;
 
-        if(app_state.update) {
+        if(active_mode->update) {
             float dt = ((float)frame_delta_time) / 1000000.0f;
-            app_state.update(dt);
+            active_mode->update(dt);
         }
 
-        if(app_state.draw) {
-            app_state.draw();
+        if(active_mode->draw) {
+            active_mode->draw();
         }
 
 #if STAK_ENABLE_SEPS114A
@@ -422,49 +443,47 @@ int stak_application_run(struct stak_application_s* application) {
         uint64_t sleep_time = min(33000000L, 33000000L - max(0L, delta_time * 1000L));
         nanosleep((struct timespec[]){ { 0, sleep_time } }, NULL);
 
-#if STAK_ENABLE_DYLIBS
-        char* plugin_file_name = 0;
+        // char* plugin_file_name = 0;
 
-        {
-            int start_pos = strrchr( application->plugin_name, '/' ) + 1 - application->plugin_name;
-            int length = strlen(application->plugin_name) - start_pos;
-            plugin_file_name = malloc(length + 1);
-            strcpy(plugin_file_name, application->plugin_name + start_pos);
-        }
+        // {
+        //     int start_pos = strrchr( application->plugin_name, '/' ) + 1 - application->plugin_name;
+        //     int length = strlen(application->plugin_name) - start_pos;
+        //     plugin_file_name = malloc(length + 1);
+        //     strcpy(plugin_file_name, application->plugin_name + start_pos);
+        // }
 
-        // read inotify buffer to see if library has been modified
-        lib_read_length = read( lib_fd, lib_notify_buffer, BUF_LEN );
-        if (( lib_read_length < 0 ) && ( errno == EAGAIN)){
-        }
-        else if(lib_read_length >= 0) {
-            int i = 0;
-            //while ( i < lib_read_length ) {
-                struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
-                if ( event->mask & IN_CLOSE_WRITE ) {
-                    if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
+        // // read inotify buffer to see if library has been modified
+        // lib_read_length = read( lib_fd, lib_notify_buffer, BUF_LEN );
+        // if (( lib_read_length < 0 ) && ( errno == EAGAIN)){
+        // }
+        // else if(lib_read_length >= 0) {
+        //     int i = 0;
+        //     //while ( i < lib_read_length ) {
+        //         struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
+        //         if ( event->mask & IN_CLOSE_WRITE ) {
+        //             if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
 
-                        // if shutdown method exists, run it
-                        if(app_state.shutdown) {
-                            app_state.shutdown();
-                        }
+        //                 // if shutdown method exists, run it
+        //                 if(app_state.shutdown) {
+        //                     app_state.shutdown();
+        //                 }
 
-                        // close currently open lib and reload it
-                        lib_close(&app_state);
-                        lib_open(application->plugin_name, &app_state);
+        //                 // close currently open lib and reload it
+        //                 lib_close(&app_state);
+        //                 lib_open(application->plugin_name, &app_state);
 
-                        // if init method exists, run it
-                        if(app_state.init) {
-                            app_state.init();
-                        }
-                    }
-                }
-                i += EVENT_SIZE + event->len;
-            //}
-        }
-        else {
-            perror( "read" );
-        }
-#endif
+        //                 // if init method exists, run it
+        //                 if(app_state.init) {
+        //                     app_state.init();
+        //                 }
+        //             }
+        //         }
+        //         i += EVENT_SIZE + event->len;
+        //     //}
+        // }
+        // else {
+        //     perror( "read" );
+        // }
     }
     return 0;
 }

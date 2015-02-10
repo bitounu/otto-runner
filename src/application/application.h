@@ -12,19 +12,18 @@
 
 struct stak_application_s{
 	struct stak_state_machine_s* state_machine;
-	char* plugin_name;
+	char *menu_filename, *mode_filename;
 #if STAK_ENABLE_SEPS114A
 	stak_canvas_s* canvas;
 	stak_seps114a_s* display;
 #endif
 	pthread_t thread_hal_update;
 };
-struct stak_application_s* stak_application_create(char* plugin_name);
+struct stak_application_s* stak_application_create(char* menu_filename, char* mode_filename);
 int stak_application_destroy();
 int stak_application_run();
 int stak_application_terminate();
 int stak_application_get_is_terminating();
-
 
 int get_shutter_button_pressed();
 int get_shutter_button_released();
