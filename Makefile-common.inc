@@ -65,8 +65,7 @@ LDFLAGS+=\
 							-lvcfiled_check \
 							-lbcm_host \
 							-lGLESv2 \
-							-lEGL \
-							-lbcm2835
+							-lEGL
 INCLUDES+=\
 							-isystem./ \
 							-isystem./src \
@@ -108,7 +107,7 @@ header:
 
 $(MAIN_BIN): $(MAIN_C_OBJS) $(MAIN_CXX_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) $(LDFLAGS) -g $^ -o $@
+	@$(CC) $(LDFLAGS) -g $^ $(STAK_SDK)/lib/libbcm2835.a -o $@
 
 build/%.o: %.c
 	@echo $(BUILDING)
