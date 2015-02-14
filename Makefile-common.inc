@@ -87,6 +87,7 @@ BUILDING_DL				=	"${cyan}Stak${yellow}➜ ${green}Building ${blue}[ ${magenta}${
 MAIN_BIN				:=	build/main
 MAIN_C					:=	lib/graphics/canvas/canvas.c \
 							lib/graphics/seps114a/seps114a.c \
+							lib/bcm2835.c \
 							src/application/application.c
 MAIN_CXX				:=	src/main.cpp
 
@@ -107,7 +108,7 @@ header:
 
 $(MAIN_BIN): $(MAIN_C_OBJS) $(MAIN_CXX_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) $(LDFLAGS) -g $^ $(STAK_SDK)/lib/libbcm2835.a -o $@
+	@$(CC) $(LDFLAGS) -g $^ -o $@
 
 build/%.o: %.c
 	@echo $(BUILDING)
