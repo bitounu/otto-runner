@@ -401,7 +401,17 @@ int stak_application_run(struct stak_application_s* application) {
                 active_mode->shutter_button_pressed();
 
         if( get_power_button_pressed() ) {
-            activate_mode(&menu_state);
+            if( active_mode != &menu_state ) {
+                activate_mode(&menu_state);
+            }
+            else if( active_mode->power_button_pressed ) {
+                active_mode->power_button_pressed();
+            }
+        }
+
+        if ( get_power_button_released() && active_mode == &menu_state &&
+                active_mode->power_button_released) {
+            active_mode->power_button_released();
         }
 
         // if( ( active_mode->power_button_released ) && get_power_button_released() )
