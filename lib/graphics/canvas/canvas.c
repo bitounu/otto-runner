@@ -49,7 +49,7 @@ stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, ui
 
     canvas->opengl_element = vc_dispmanx_element_add(canvas->update, canvas->display, 1 , &screen_rect,
                              canvas->opengl_resource, &canvas->opengl_rect,
-                             DISPMANX_PROTECTION_NONE, &alpha, 0, 0);
+                             DISPMANX_PROTECTION_NONE, &alpha, 0, DISPMANX_NO_ROTATE);
 
     assert(canvas->opengl_element != 0);
 
@@ -67,9 +67,9 @@ stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, ui
         EGL_GREEN_SIZE, 8,
         EGL_BLUE_SIZE, 8,
         EGL_ALPHA_SIZE, 8,
+        EGL_ALPHA_MASK_SIZE, 8,
         //EGL_LUMINANCE_SIZE, EGL_DONT_CARE,          //EGL_DONT_CARE
         EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_SAMPLES,        2,
         EGL_NONE
     };
 
