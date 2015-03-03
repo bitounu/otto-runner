@@ -19,7 +19,8 @@ LD						:=	$(CROSS_TOOLCHAIN_DIR)/$(CROSS_PREFIX)ld
 STRIP					:=	$(CROSS_TOOLCHAIN_DIR)/$(CROSS_PREFIX)strip
 
 
-CFLAGS+=					-Wall \
+CFLAGS+=\
+							-Wall \
 							-fPIC \
 							-DPIC \
 							-DSTANDALONE \
@@ -65,7 +66,8 @@ LDFLAGS+=\
 							-lvcfiled_check \
 							-lbcm_host \
 							-lGLESv2 \
-							-lEGL
+							-lEGL \
+							-export-dynamic
 INCLUDES+=\
 							-isystem./ \
 							-isystem./src \

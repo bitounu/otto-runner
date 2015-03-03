@@ -12,6 +12,8 @@ extern "C" {
 
 void stak_activate_mode();
 
+const char *stak_assets_path();
+
 #ifdef __cplusplus
 }
 #endif

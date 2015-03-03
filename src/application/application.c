@@ -36,6 +36,7 @@ typedef struct {
     int ( *crank_released )             ( void );                   // int crank_up                 ( void );
     int ( *crank_pressed )              ( void );                   // int crank_down               ( void );
     int ( *crank_rotated )              ( int amount );             // int crank_rotated            ( int amount );
+    char *assets_path;
 } stak_state_s;
 
 static stak_state_s menu_state;
@@ -107,7 +108,6 @@ int get_crank_state() {
     return ( rotary_button.state == 1 );
 }
 
-
 //
 // lib_open
 //
@@ -119,6 +119,15 @@ int lib_open(const char* plugin_name, stak_state_s* app_state) {
     if (!lib_handle) {
         fputs (dlerror(), stderr);
         exit(1);
+    }
+
+    // Generate the assets path for this lib
+    {
+        char *slash_pos = strrchr(plugin_name, '/');
+        size_t prefix_size = slash_pos ? (size_t)(slash_pos + 1 - plugin_name) : 0;
+        app_state->assets_path = malloc(prefix_size + strlen("assets/"));
+        strncpy(app_state->assets_path, plugin_name, prefix_size);
+        strcat(app_state->assets_path, "assets/");
     }
 
     // int (*init)           ( void );
@@ -236,6 +245,14 @@ static stak_state_s *mode_queued_for_activation = 0;
 
 void stak_activate_mode() {
     mode_queued_for_activation = &mode_state;
+}
+
+//
+// stak_assets_path
+//
+
+const char *stak_assets_path() {
+    return active_mode->assets_path;
 }
 
 //
