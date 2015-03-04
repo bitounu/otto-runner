@@ -335,6 +335,7 @@ int stak_application_destroy(struct stak_application_s* application) {
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
 
+#if 0
     int lib_fd = inotify_init();
     int lib_wd, lib_read_length;
     char lib_notify_buffer[BUF_LEN];
@@ -353,9 +354,8 @@ int stak_application_run(struct stak_application_s* application) {
         perror( "fcntl" );
         close(lib_fd);
         return -1;
-
     }
-
+#endif
 
     bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
