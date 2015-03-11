@@ -54,8 +54,11 @@ MAIN_SRCS=		src/main.c \
 				lib/graphics/seps114a/seps114a.c \
 				lib/libshapes/libshapes.c
 
+CPP_SRCS=		lib/stak/devices/disk.cpp
+
 API_SRCS=		$(MODES)
 MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
+CPP_OBJS=		$(patsubst %.cpp,	build/%.o,	$(CPP_SRCS))
 API_OBJS=			$(patsubst %.cpp,	build/%.o,	$(API_SRCS))
 API_OUTPUT=		$(patsubst %.cpp,	build/%.so,	$(API_SRCS))
 ALL_OBJS=		$(MAIN_OBJS) $(API_OBJS)
@@ -68,7 +71,7 @@ all: header $(MAIN_BIN) $(API_OUTPUT)
 header:
 	@echo $(HEADER)
 
-$(MAIN_BIN): $(MAIN_OBJS)
+$(MAIN_BIN): $(MAIN_OBJS) $(CPP_OBJS)
 	@echo $(BUILDING_DL)
 	@$(CC) -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -p -g -Wl,--no-whole-archive -rdynamic
 
