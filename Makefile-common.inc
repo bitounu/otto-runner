@@ -1,67 +1,104 @@
-CFLAGS+=-Wall -fPIC -I./src -DSTANDALONE -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS \
-		-DTARGET_POSIX -D_LINUX -DPIC -D_REENTRANT -D_LARGEFILE64_SOURCE \
-		-D_FILE_OFFSET_BITS=64 -U_FORTIFY_SOURCE -DHAVE_LIBOPENMAX=2 -DOMX \
-		-DOMX_SKIP64BIT -DUSE_EXTERNAL_OMX -DHAVE_LIBBCM_HOST \
-		-DUSE_EXTERNAL_LIBBCM_HOST -DUSE_VCHIQ_ARM
-ifdef PREFIX
-	CFLAGS+=--sysroot=$(PREFIX) -I$(PREFIX)/include
-endif
-LDFLAGS+=-L/opt/vc/lib/ -L./lib \
-		 -lpthread \
-		 -ldl \
-		 -lGLESv2 \
-		 -lEGL \
-		 -lopenmaxil \
-		 -lbcm_host \
-		 -lvcos \
-		 -lvchiq_arm \
-		 -lkhrn_client \
-		 -lvchostif \
-		 -lvcilcs \
-		 -lvcfiled_check \
-		 -ljpeg \
-		 -lrt \
-		 -lm \
-		 -lbcm2835 \
-		 -lmmal \
-		 -lmmal_core \
-		 -lmmal_util
-INCLUDES+=-I`pwd` -I/opt/vc/include \
-		 -I/opt/vc/include/interface/vcos/pthreads \
-		 -I/opt/vc/include/interface/vmcs_host/linux/ \
-		 -I./lib \
-		 -I./lib/gifsicle/include \
-		 -I./lib/gifsicle/include \
-		 -I./src \
-		 -I./assets
+red						:=	`tput setaf 1`
+green					:=	`tput setaf 2`
+yellow					:=	`tput setaf 3`
+blue					:=	`tput setaf 4`
+magenta					:=	`tput setaf 5`
+cyan					:=	`tput setaf 6`
+white					:=	`tput setaf 7`
+reset					:=	`tput sgr0`
+
+TARGET					:=	arm-stak-linux-gnueabihf
+STAK_SDK				:=	/opt/stak-sdk
+VC_SDK					:=	/opt/vc
+CROSS_TOOLCHAIN_DIR		:=	$(STAK_SDK)/bin
+CROSS_PREFIX			:=	$(TARGET)-
+
+CC						:=	$(CROSS_TOOLCHAIN_DIR)/$(CROSS_PREFIX)gcc
+CXX						:=	$(CROSS_TOOLCHAIN_DIR)/$(CROSS_PREFIX)g++
+LD						:=	$(CROSS_TOOLCHAIN_DIR)/$(CROSS_PREFIX)ld
+STRIP					:=	$(CROSS_TOOLCHAIN_DIR)/$(CROSS_PREFIX)strip
 
 
-HEADER="\33[35m----------[\33[36;1m Stak: \33[0;33m$(BIN) \33[35m]----------\33[39m"
-FAILURE="\33[36;1mStak \33[37m➜ \33[31mBuild Failed!\33[0;39m"
-BUILDING="\33[36;1mStak \33[0;37m➜ \33[32mBuilding \33[34m$<...\33[39m"
-COMPLETE="\33[36mStak \33[37m➜ \33[32mBuild Complete!\33[39m"
-BUILDING_DL="\33[36;1mStak \33[0;37m➜ \33[32mBuilding \33[34m[ \33[35m${notdir $@}\33[34m ]\33[39m"
+CFLAGS+=\
+							-Wall \
+							-fPIC \
+							-DPIC \
+							-DSTANDALONE \
+							-D__STDC_CONSTANT_MACROS \
+							-D__STDC_LIMIT_MACROS \
+							-DTARGET_POSIX \
+							-D_LINUX \
+							-D_REENTRANT \
+							-D_LARGEFILE64_SOURCE \
+							-D_FILE_OFFSET_BITS=64 \
+							-U_FORTIFY_SOURCE \
+							-DHAVE_LIBOPENMAX=2 \
+							-DOMX \
+							-DOMX_SKIP64BIT \
+							-DUSE_EXTERNAL_OMX \
+							-DHAVE_LIBBCM_HOST \
+							-DUSE_EXTERNAL_LIBBCM_HOST \
+							-DUSE_VCHIQ_ARM
 
-CC := $(CROSS_COMPILE)gcc
-LD := $(CROSS_COMPILE)g++
-STRIP := $(CROSS_COMPILE)strip
+#	TARGETFLAGS=\
+#				-target arm-linux-engeabihf \
+#				-integrated-as \
+#				-mfloat-abi=softfp
+
+LDFLAGS+=\
+							-L$(STAK_SDK)/lib \
+							-L$(VC_SDK)/lib \
+							-L./lib \
+							-lpthread \
+							-ldl \
+							-lstdc++ \
+							-lc \
+							-lkhrn_client \
+							-lvchostif \
+							-lvcilcs \
+							-lvcfiled_check \
+							-lm \
+							-lvcos \
+							-lvchiq_arm\
+							-lkhrn_client \
+							-lvchostif \
+							-lvcilcs \
+							-lvcfiled_check \
+							-lbcm_host \
+							-lGLESv2 \
+							-lEGL \
+							-export-dynamic
+INCLUDES+=\
+							-isystem./ \
+							-isystem./src \
+							-I$(STAK_SDK)/include \
+							-I$(VC_SDK)/include \
+							-I$(VC_SDK)/include/interface/vcos/pthreads \
+							-I$(VC_SDK)/include/interface/vmcs_host/linux/ \
+							-I./lib \
+							-I./src \
+							-I./assets
 
 
-MAIN_BIN=		build/main
-MAIN_SRCS=		src/main.c \
-				src/application/application.c \
-				lib/graphics/canvas/canvas.c \
-				lib/graphics/seps114a/seps114a.c \
-				lib/libshapes/libshapes.c
+HEADER					=	"${magenta}----------[${cyan} Stak: ${yellow}$(MAIN_BIN) ${magenta}]----------${reset}"
+FAILURE					=	"${cyan}Stak${yellow}➜ ${red}Build Failed!${reset}"
+BUILDING				=	"${cyan}Stak${yellow}➜ ${green}Building ${blue}$<...${reset}"
+COMPLETE				=	"${cyan}Stak${yellow}➜ ${green}Build Complete!${reset}"
+BUILDING_DL				=	"${cyan}Stak${yellow}➜ ${green}Building ${blue}[ ${magenta}${notdir $<}${blue} ]${reset}"
 
-CPP_SRCS=		lib/stak/devices/disk.cpp
+MAIN_BIN				:=	build/main
+MAIN_C					:=	lib/graphics/canvas/canvas.c \
+							lib/graphics/seps114a/seps114a.c \
+							lib/bcm2835.c \
+							src/application/application.c
+MAIN_CXX				:=	src/main.cpp
 
-API_SRCS=		$(MODES)
-MAIN_OBJS=		$(patsubst %.c,	build/%.o,	$(MAIN_SRCS))
-CPP_OBJS=		$(patsubst %.cpp,	build/%.o,	$(CPP_SRCS))
-API_OBJS=			$(patsubst %.cpp,	build/%.o,	$(API_SRCS))
-API_OUTPUT=		$(patsubst %.cpp,	build/%.so,	$(API_SRCS))
-ALL_OBJS=		$(MAIN_OBJS) $(API_OBJS)
+API_SRCS				:=	$(MODES)
+MAIN_C_OBJS				:=	$(patsubst %.c,		build/%.o,	$(MAIN_C))
+MAIN_CXX_OBJS			:=	$(patsubst %.cpp,	build/%.o,	$(MAIN_CXX))
+API_OBJS				:=	$(patsubst %.cpp,	build/%.o,	$(API_SRCS))
+API_OUTPUT				:=	$(patsubst %.cpp,	build/%.so,	$(API_SRCS))
+ALL_OBJS				:=	$(MAIN_OBJS) $(API_OBJS)
 
 .SECONDARY:  $(ALL_OBJS)
 
@@ -71,21 +108,24 @@ all: header $(MAIN_BIN) $(API_OUTPUT)
 header:
 	@echo $(HEADER)
 
-$(MAIN_BIN): $(MAIN_OBJS) $(CPP_OBJS)
+$(MAIN_BIN): $(MAIN_C_OBJS) $(MAIN_CXX_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) -o $@ -Wl,--whole-archive $(MAIN_OBJS) $(LDFLAGS) -p -g -Wl,--no-whole-archive -rdynamic
+	@$(CC) $(LDFLAGS) -g $^ -o $@
 
 build/%.o: %.c
 	@echo $(BUILDING)
 	@mkdir -p `dirname $@`
-	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ -p -g
+	@$(CC) $(TARGETFLAGS) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 
 build/%.o: %.cpp
 	@echo $(BUILDING)
 	@mkdir -p `dirname $@`
-	@$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@ -g -std=c++1y -stdlib=libc++
+	@$(CXX) $(TARGETFLAGS) $(CFLAGS) $(INCLUDES) -g -std=c++1y -c $< -o $@
 
 build/%.so: build/%.o
 	@echo $(BUILDING_DL)
-	@$(CXX) $(CFLAGS) -shared -o build/$(notdir $@) -g $< $(API_EXTRA_OBJS) -lbcm2835 -lpthread -lc++abi
+	@$(CXX) $(CFLAGS) $(LDFLAGS) -shared -o build/$(notdir $@) -g $< $(API_EXTRA_OBJS)
+
+clean:
+	rm -rf build/

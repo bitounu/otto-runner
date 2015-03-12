@@ -7,10 +7,13 @@
 #include <stdio.h>
 
 #ifdef __cplusplus
+#define STAK_EXPORT extern "C"
 extern "C" {
 #endif
 
 void stak_activate_mode();
+
+const char *stak_assets_path();
 
 #ifdef __cplusplus
 }

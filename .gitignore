@@ -4,3 +4,4 @@
 *.so
 *.so
 *.DS_Store
+build/*

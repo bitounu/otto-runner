@@ -36,6 +36,7 @@ typedef struct {
     int ( *crank_released )             ( void );                   // int crank_up                 ( void );
     int ( *crank_pressed )              ( void );                   // int crank_down               ( void );
     int ( *crank_rotated )              ( int amount );             // int crank_rotated            ( int amount );
+    char *assets_path;
 } stak_state_s;
 
 static stak_state_s menu_state;
@@ -107,7 +108,6 @@ int get_crank_state() {
     return ( rotary_button.state == 1 );
 }
 
-
 //
 // lib_open
 //
@@ -119,6 +119,15 @@ int lib_open(const char* plugin_name, stak_state_s* app_state) {
     if (!lib_handle) {
         fputs (dlerror(), stderr);
         exit(1);
+    }
+
+    // Generate the assets path for this lib
+    {
+        char *slash_pos = strrchr(plugin_name, '/');
+        size_t prefix_size = slash_pos ? (size_t)(slash_pos + 1 - plugin_name) : 0;
+        app_state->assets_path = malloc(prefix_size + strlen("assets/"));
+        strncpy(app_state->assets_path, plugin_name, prefix_size);
+        strcat(app_state->assets_path, "assets/");
     }
 
     // int (*init)           ( void );
@@ -239,6 +248,14 @@ void stak_activate_mode() {
 }
 
 //
+// stak_assets_path
+//
+
+const char *stak_assets_path() {
+    return active_mode->assets_path;
+}
+
+//
 // stak_application_terminate_cb
 //
 void stak_application_terminate_cb(int signum)
@@ -318,6 +335,7 @@ int stak_application_destroy(struct stak_application_s* application) {
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
 
+#if 0
     int lib_fd = inotify_init();
     int lib_wd, lib_read_length;
     char lib_notify_buffer[BUF_LEN];
@@ -336,9 +354,8 @@ int stak_application_run(struct stak_application_s* application) {
         perror( "fcntl" );
         close(lib_fd);
         return -1;
-
     }
-
+#endif
 
     bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
@@ -401,7 +418,17 @@ int stak_application_run(struct stak_application_s* application) {
                 active_mode->shutter_button_pressed();
 
         if( get_power_button_pressed() ) {
-            activate_mode(&menu_state);
+            if( active_mode != &menu_state ) {
+                activate_mode(&menu_state);
+            }
+            else if( active_mode->power_button_pressed ) {
+                active_mode->power_button_pressed();
+            }
+        }
+
+        if ( get_power_button_released() && active_mode == &menu_state &&
+                active_mode->power_button_released) {
+            active_mode->power_button_released();
         }
 
         // if( ( active_mode->power_button_released ) && get_power_button_released() )
