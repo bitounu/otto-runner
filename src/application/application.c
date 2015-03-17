@@ -219,8 +219,8 @@ void* update_encoder(void* arg) {
         last_encoded_value = encoded;
 
         delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
-        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
+        uint64_t sleep_time = min(16500000L, 16500000L - max(0L, delta_time * 1000L));
+        nanosleep((struct timespec[]){ { 0, sleep_time } }, NULL);
     }
     return 0;
 }
