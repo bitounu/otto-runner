@@ -67,6 +67,7 @@ LDFLAGS+=\
 							-lbcm_host \
 							-lGLESv2 \
 							-lEGL \
+							-lrt \
 							-export-dynamic
 INCLUDES+=\
 							-isystem./ \
