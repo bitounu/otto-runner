@@ -7,8 +7,8 @@ cyan					:=	`tput setaf 6`
 white					:=	`tput setaf 7`
 reset					:=	`tput sgr0`
 
-TARGET					:=	arm-stak-linux-gnueabihf
-STAK_SDK				:=	/opt/stak-sdk
+TARGET					?=	arm-stak-linux-gnueabihf
+STAK_SDK				?=	/opt/stak-sdk
 VC_SDK					:=	/opt/vc
 CROSS_TOOLCHAIN_DIR		:=	$(STAK_SDK)/bin
 CROSS_PREFIX			:=	$(TARGET)-
@@ -111,7 +111,7 @@ header:
 
 $(MAIN_BIN): $(MAIN_C_OBJS) $(MAIN_CXX_OBJS)
 	@echo $(BUILDING_DL)
-	@$(CC) $(LDFLAGS) -g $^ -o $@
+	@$(CC) $(LDFLAGS) -g $^ -o $@ -lOttoHardware
 
 build/%.o: %.c
 	@echo $(BUILDING)
