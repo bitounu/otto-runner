@@ -20,6 +20,12 @@
 
 #include <bcm2835.h>
 
+#include <otto/otto.hpp>
+#include <otto/system.hpp>
+#include <otto/devices/disk.hpp>
+#include <otto/io/rotary.hpp>
+#include <otto/io/buttons.hpp>
+
 static volatile sig_atomic_t terminate;
 static void *lib_handle;
 #define stak_log //
@@ -312,10 +318,10 @@ int stak_application_destroy(struct stak_application_s* application) {
     if(menu_state.shutdown) menu_state.shutdown();
     if(mode_state.shutdown) mode_state.shutdown();
 
-    if(pthread_join(application->thread_hal_update, NULL)) {
+    /*if(pthread_join(application->thread_hal_update, NULL)) {
         fprintf(stderr, "Error joining thread\n");
         return -1;
-    }
+    }*/
 #if STAK_ENABLE_SEPS114A
     stak_canvas_destroy(application->canvas);
     stak_seps114a_destroy(application->display);
@@ -329,6 +335,7 @@ int stak_application_destroy(struct stak_application_s* application) {
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
 
+static void encoder_callback( int delta ){ encoder_value += delta; };
 //
 // stak_application_run
 //
@@ -357,19 +364,21 @@ int stak_application_run(struct stak_application_s* application) {
     }
 #endif
 
-    bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
+    ottoHardwareInit();
+
+    //bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
+    //bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
+    //bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_fsel(pin_rotary_button, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(pin_power_button, BCM2835_GPIO_FSEL_INPT);
+    //bcm2835_gpio_fsel(pin_power_button, BCM2835_GPIO_FSEL_INPT);
 
     // set pin pull up/down status
-    bcm2835_gpio_set_pud(pin_shutter_button, BCM2835_GPIO_PUD_UP);
-    bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
-    bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
+    //bcm2835_gpio_set_pud(pin_shutter_button, BCM2835_GPIO_PUD_UP);
+    //bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
+    //bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
     bcm2835_gpio_set_pud(pin_rotary_button, BCM2835_GPIO_PUD_UP);
 
-    pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
+    //pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
 
         // setup sigterm handler
     action.sa_handler = stak_application_terminate_cb;
@@ -380,6 +389,8 @@ int stak_application_run(struct stak_application_s* application) {
     int frames_this_second = 0;
     int frames_per_second = 0;
     int rotary_last_value = 0;
+
+    ottoRotarySetCallback( encoder_callback );
 
     while(!terminate) {
         frames_this_second++;
