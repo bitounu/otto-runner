@@ -43,6 +43,7 @@ typedef struct {
     int ( *crank_pressed )              ( void );                   // int crank_down               ( void );
     int ( *crank_rotated )              ( int amount );             // int crank_rotated            ( int amount );
     char *assets_path;
+    int isInitialized;
 } stak_state_s;
 
 static stak_state_s menu_state;
@@ -245,6 +246,10 @@ uint64_t stak_core_get_time() {
 //
 static void activate_mode(stak_state_s *mode) {
     active_mode = mode;
+    if (!mode->isInitialized && mode->init) {
+        mode->init();
+        mode->isInitialized = 1;
+    }
 }
 
 static stak_state_s *mode_queued_for_activation = 0;
@@ -295,15 +300,8 @@ struct stak_application_s* stak_application_create(char* menu_filename, char* mo
     lib_open(application->menu_filename, &menu_state);
     lib_open(application->mode_filename, &mode_state);
 
-    if(menu_state.init) {
-        menu_state.init();
-    }
-
-    // TODO(ryan): We will probably want to init the mode when it is first activated, but let's do
-    // it here for now.
-    if(mode_state.init) {
-        mode_state.init();
-    }
+    menu_state.isInitialized = 0;
+    mode_state.isInitialized = 0;
 
     activate_mode(&menu_state);
 
