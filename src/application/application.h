@@ -1,6 +1,7 @@
 #ifndef STAK_APPLICATION_H
 #define STAK_APPLICATION_H
 #include <pthread.h>
+#include <otto/otto.hpp>
 
 #define STAK_ENABLE_SEPS114A 1
 #define STAK_ENABLE_DYLIBS 1
@@ -19,27 +20,27 @@ struct stak_application_s{
 #endif
 	pthread_t thread_hal_update;
 };
-struct stak_application_s* stak_application_create(char* menu_filename, char* mode_filename);
-int stak_application_destroy();
-int stak_application_run();
-int stak_application_terminate();
-int stak_application_get_is_terminating();
+STAK_EXPORT struct stak_application_s* stak_application_create(char* menu_filename, char* mode_filename);
+STAK_EXPORT int stak_application_destroy(struct stak_application_s* application);
+STAK_EXPORT int stak_application_run(struct stak_application_s* application);
+STAK_EXPORT int stak_application_terminate();
+STAK_EXPORT int stak_application_get_is_terminating();
 
-int get_shutter_button_pressed();
-int get_shutter_button_released();
-int get_shutter_button_state();
+STAK_EXPORT int get_shutter_button_pressed();
+STAK_EXPORT int get_shutter_button_released();
+STAK_EXPORT int get_shutter_button_state();
 
-int get_power_button_pressed();
-int get_power_button_released();
-int get_power_button_state();
+STAK_EXPORT int get_power_button_pressed();
+STAK_EXPORT int get_power_button_released();
+STAK_EXPORT int get_power_button_state();
 
-int get_crank_pressed();
-int get_crank_released();
-int get_crank_state();
+STAK_EXPORT int get_crank_pressed();
+STAK_EXPORT int get_crank_released();
+STAK_EXPORT int get_crank_state();
 
-uint64_t stak_core_get_time();
+STAK_EXPORT uint64_t stak_core_get_time();
 
-int stak_get_rotary_value();
+STAK_EXPORT int stak_get_rotary_value();
 
 
 #define max(a,b) \

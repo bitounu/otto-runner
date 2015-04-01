@@ -50,23 +50,11 @@ static stak_state_s menu_state;
 static stak_state_s mode_state;
 static stak_state_s *active_mode = &menu_state;
 
-const int pin_shutter_button = 16;
-const int pin_power_button = 4;
-const int pin_rotary_button = 17;
-const int pin_rotary_a = 15;
-const int pin_rotary_b = 14;
-
-typedef struct {
-    int state, is_changed;
-} button_state;
-
-static button_state rotary_button = { 1, 0 };
-static button_state shutter_button = { 1, 0 };
-static button_state power_button = { 1, 0 };
-
 volatile int last_encoded_value = 0, encoder_value = 0, encoder_delta = 0, encoder_last_delta = 0;
+volatile static int shutter_state = -1, power_state = -1, rotary_toggle_state = -1;
+static pthread_mutex_t display_mutex;
 
-
+#if 0
 int check_button_changed(button_state *button, int pin) {
     if (!button->is_changed) {
         int state = bcm2835_gpio_lev(pin);
@@ -114,6 +102,8 @@ int get_crank_released() {
 int get_crank_state() {
     return ( rotary_button.state == 1 );
 }
+
+#endif
 
 //
 // lib_open
@@ -201,36 +191,6 @@ int lib_close(stak_state_s* app_state) {
     return 0;
 }
 
-//
-// update_encoder
-//
-void* update_encoder(void* arg) {
-    const int encoding_matrix[4][4] = {
-        { 0,-1, 1, 0},
-        { 1, 0, 0,-1},
-        {-1, 0, 0, 1},
-        { 0, 1,-1, 0}
-    };
-
-    uint64_t last_time, current_time, delta_time;
-    delta_time = last_time = current_time = stak_core_get_time();
-    while(!stak_application_get_is_terminating()) {
-        current_time = stak_core_get_time();
-
-        int encoded = (bcm2835_gpio_lev(pin_rotary_a) << 1)
-                     | bcm2835_gpio_lev(pin_rotary_b);
-
-        encoder_delta = encoding_matrix[last_encoded_value][encoded];
-
-        encoder_value += encoder_delta;
-        last_encoded_value = encoded;
-
-        delta_time = (stak_core_get_time() - current_time);
-        uint64_t sleep_time = min(16000000L, 16000000L - max(0,delta_time));
-        nanosleep((struct timespec[]){{0, sleep_time}}, NULL);
-    }
-    return 0;
-}
 
 //
 // stak_core_get_time
@@ -316,6 +276,8 @@ int stak_application_destroy(struct stak_application_s* application) {
     if(menu_state.shutdown) menu_state.shutdown();
     if(mode_state.shutdown) mode_state.shutdown();
 
+    ottoHardwareTerminate();
+
     /*if(pthread_join(application->thread_hal_update, NULL)) {
         fprintf(stderr, "Error joining thread\n");
         return -1;
@@ -334,49 +296,78 @@ int stak_application_destroy(struct stak_application_s* application) {
 
 
 static void encoder_callback( int delta ){ encoder_value += delta; };
+static void shutter_callback( int isPressed ){ shutter_state = isPressed; };
+static void power_callback( int isPressed ){ power_state = isPressed; };
+
+
+//
+// update_encoder
+//
+static void* thread_display(void* arg) {
+    
+    struct stak_application_s* application = (struct stak_application_s*) arg;
+
+#if 0
+    // set thread priority
+    struct sched_param schedule;
+    memset (&schedule, 0, sizeof(schedule)) ;
+    int priority = 1;
+
+    if (priority > sched_get_priority_max (SCHED_RR))
+        schedule.sched_priority = sched_get_priority_max (SCHED_RR) ;
+    else
+        schedule.sched_priority = priority;
+
+    sched_setscheduler (0, SCHED_RR, &schedule);
+#endif
+
+    uint64_t last_second_time, last_frame_time, current_time, delta_time;
+    delta_time = last_second_time = last_frame_time = current_time = stak_core_get_time();
+    int frames_this_second = 0;
+    int frames_per_second = 0;
+
+
+    while( !stak_application_get_is_terminating() ) {
+        current_time = stak_core_get_time();
+
+        if(current_time > last_second_time + 1000000) {
+            frames_per_second = frames_this_second;
+            frames_per_second = frames_per_second;
+            frames_this_second = 0;
+            last_second_time = current_time;
+            printf("OLED FPS: %i\n", frames_per_second);
+            //std::cout << "OLED FPS: " << frames_per_second << " Delta: " << delta_time << std::endl;
+        }
+
+        //pthread_mutex_lock(&display_mutex);
+        frames_this_second++;
+        
+        stak_seps114a_update( application->display );
+        
+        //pthread_mutex_unlock(&display_mutex);
+        delta_time = (stak_core_get_time() - current_time);
+    }
+    return 0;
+}
+
+
 //
 // stak_application_run
 //
 int stak_application_run(struct stak_application_s* application) {
     struct sigaction action;
-
-#if 0
-    int lib_fd = inotify_init();
-    int lib_wd, lib_read_length;
-    char lib_notify_buffer[BUF_LEN];
-
-    if( lib_fd < 0 ) {
-        perror( "inotify_init" );
-        return -1;
-    }
-    lib_wd = inotify_add_watch( lib_fd, "./build/", IN_CLOSE_WRITE );
-    if( lib_wd < 0 ) {
-        perror( "inotify_add_watch" );
-        return -1;
-    }
-    int flags = fcntl(lib_fd, F_GETFL, 0);
-    if (fcntl(lib_fd, F_SETFL, flags | O_NONBLOCK) == -1 ) {
-        perror( "fcntl" );
-        close(lib_fd);
-        return -1;
-    }
-#endif
+    pthread_t pth_display;
 
     ottoHardwareInit();
 
-    //bcm2835_gpio_fsel(pin_shutter_button, BCM2835_GPIO_FSEL_INPT);
-    //bcm2835_gpio_fsel(pin_rotary_a, BCM2835_GPIO_FSEL_INPT);
-    //bcm2835_gpio_fsel(pin_rotary_b, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_fsel(pin_rotary_button, BCM2835_GPIO_FSEL_INPT);
-    //bcm2835_gpio_fsel(pin_power_button, BCM2835_GPIO_FSEL_INPT);
+    ottoRotarySetCallback( encoder_callback );
+    ottoButtonShutterSetCallback( shutter_callback );
+    ottoButtonPowerSetCallback( power_callback );
 
-    // set pin pull up/down status
-    //bcm2835_gpio_set_pud(pin_shutter_button, BCM2835_GPIO_PUD_UP);
-    //bcm2835_gpio_set_pud(pin_rotary_a, BCM2835_GPIO_PUD_UP);
-    //bcm2835_gpio_set_pud(pin_rotary_b, BCM2835_GPIO_PUD_UP);
-    bcm2835_gpio_set_pud(pin_rotary_button, BCM2835_GPIO_PUD_UP);
+    if( pthread_mutex_init(&display_mutex, NULL) != 0)
+        return -1;
 
-    //pthread_create(&application->thread_hal_update, NULL, update_encoder, NULL);
+    pthread_create(&pth_display, NULL, thread_display, (void*) application);
 
         // setup sigterm handler
     action.sa_handler = stak_application_terminate_cb;
@@ -388,70 +379,57 @@ int stak_application_run(struct stak_application_s* application) {
     int frames_per_second = 0;
     int rotary_last_value = 0;
 
-    ottoRotarySetCallback( encoder_callback );
-
-    while(!terminate) {
+    while( !stak_application_get_is_terminating() ) {
         frames_this_second++;
         current_time = stak_core_get_time();
 
-        if(current_time > last_second_time + 1000000) {
+        /*if( current_time > last_second_time + 1000000 ) {
             frames_per_second = frames_this_second;
             frames_per_second = frames_per_second;
             frames_this_second = 0;
             last_second_time = current_time;
             stak_log("FPS: %i", frames_per_second);
-        }
+        }*/
 
-        if(mode_queued_for_activation) {
+        if( mode_queued_for_activation ) {
             activate_mode(mode_queued_for_activation);
             mode_queued_for_activation = 0;
         }
 
-        if(active_mode->crank_rotated) {
+        if( active_mode->crank_rotated ) {
             if(rotary_last_value != encoder_value) {
                 active_mode->crank_rotated(rotary_last_value - encoder_value);
                 rotary_last_value = encoder_value;
             }
         }
 
-
-        shutter_button.is_changed = 0;
-        power_button.is_changed = 0;
-        rotary_button.is_changed = 0;
-
-
-        if( ( active_mode->shutter_button_released ) && get_shutter_button_released() )
+        if( shutter_state != -1 ) {
+            if( shutter_state == 0 ) {
                 active_mode->shutter_button_released();
-
-        if( ( active_mode->shutter_button_pressed ) && get_shutter_button_pressed() )
+            }else if( active_mode->shutter_button_pressed ) {
                 active_mode->shutter_button_pressed();
+            }
+            shutter_state = -1;
+        }
 
-        if( get_power_button_pressed() ) {
+        if( power_state != -1 ) {
             if( active_mode != &menu_state ) {
                 activate_mode(&menu_state);
+
+                if( power_state == 0 ) {
+                    active_mode->power_button_released();
+                }else {
+                    active_mode->power_button_pressed();
+                }
+            }else {
+                if( power_state == 0 ) {
+                    active_mode->power_button_released();
+                }else {
+                    active_mode->power_button_pressed();
+                }
             }
-            else if( active_mode->power_button_pressed ) {
-                active_mode->power_button_pressed();
-            }
+            power_state = -1;
         }
-
-        if ( get_power_button_released() && active_mode == &menu_state &&
-                active_mode->power_button_released) {
-            active_mode->power_button_released();
-        }
-
-        // if( ( active_mode->power_button_released ) && get_power_button_released() )
-        //         active_mode->power_button_released();
-
-        // if( ( active_mode->power_button_pressed ) && get_power_button_pressed() )
-        //         active_mode->power_button_pressed();
-
-        if( ( active_mode->crank_released ) && get_crank_released() )
-                active_mode->crank_released();
-
-        if( ( active_mode->crank_pressed ) && get_crank_pressed() )
-                active_mode->crank_pressed();
-
 
         uint64_t frame_delta_time = current_time - last_frame_time;
         last_frame_time = current_time;
@@ -460,67 +438,23 @@ int stak_application_run(struct stak_application_s* application) {
             float dt = ((float)frame_delta_time) / 1000000.0f;
             active_mode->update(dt);
         }
-
+        //pthread_mutex_lock(&display_mutex);
         if(active_mode->draw) {
             active_mode->draw();
         }
-
-#if STAK_ENABLE_SEPS114A
-    #if 1
         stak_canvas_swap(application->canvas);
         stak_canvas_copy(application->canvas, (uint8_t*)application->display->framebuffer, 96 * 2);
-    #endif
-    #if 1
-        stak_seps114a_update(application->display);
-    #endif
-#endif
+        //pthread_mutex_unlock(&display_mutex);
 
         delta_time = (stak_core_get_time() - current_time);
         uint64_t sleep_time = min(33000000L, 33000000L - max(0L, delta_time * 1000L));
         nanosleep((struct timespec[]){ { 0, sleep_time } }, NULL);
-
-        // char* plugin_file_name = 0;
-
-        // {
-        //     int start_pos = strrchr( application->plugin_name, '/' ) + 1 - application->plugin_name;
-        //     int length = strlen(application->plugin_name) - start_pos;
-        //     plugin_file_name = malloc(length + 1);
-        //     strcpy(plugin_file_name, application->plugin_name + start_pos);
-        // }
-
-        // // read inotify buffer to see if library has been modified
-        // lib_read_length = read( lib_fd, lib_notify_buffer, BUF_LEN );
-        // if (( lib_read_length < 0 ) && ( errno == EAGAIN)){
-        // }
-        // else if(lib_read_length >= 0) {
-        //     int i = 0;
-        //     //while ( i < lib_read_length ) {
-        //         struct inotify_event *event = ( struct inotify_event * ) &lib_notify_buffer[ i ];
-        //         if ( event->mask & IN_CLOSE_WRITE ) {
-        //             if ( ( ! (event->mask & IN_ISDIR) ) && ( strstr(event->name, plugin_file_name) != 0 ) ) {
-
-        //                 // if shutdown method exists, run it
-        //                 if(app_state.shutdown) {
-        //                     app_state.shutdown();
-        //                 }
-
-        //                 // close currently open lib and reload it
-        //                 lib_close(&app_state);
-        //                 lib_open(application->plugin_name, &app_state);
-
-        //                 // if init method exists, run it
-        //                 if(app_state.init) {
-        //                     app_state.init();
-        //                 }
-        //             }
-        //         }
-        //         i += EVENT_SIZE + event->len;
-        //     //}
-        // }
-        // else {
-        //     perror( "read" );
-        // }
     }
+    if(pthread_join(pth_display, NULL)) {
+        fprintf(stderr, "Error joining thread\n");
+        return -1;
+    }
+
     return 0;
 }
 
