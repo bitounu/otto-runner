@@ -1,15 +1,16 @@
 #ifndef STAK_SEPS114A_H
 #define STAK_SEPS114A_H
 #include <stdint.h>
+#include <otto/otto.hpp>
 
 typedef struct {
 	uint16_t* framebuffer;
 	int spi_fd;
 }stak_seps114a_s;
 
-stak_seps114a_s* stak_seps114a_create();
-int stak_seps114a_destroy(stak_seps114a_s* device);
-int stak_seps114a_update(stak_seps114a_s* device);
+STAK_EXPORT stak_seps114a_s* stak_seps114a_create();
+STAK_EXPORT int stak_seps114a_destroy(stak_seps114a_s* device);
+STAK_EXPORT int stak_seps114a_update(stak_seps114a_s* device);
 
 int stak_seps114a_write_byte(stak_seps114a_s* device, uint8_t data_value);
 int stak_seps114a_write_data(stak_seps114a_s* device, uint8_t* data_value, uint32_t size);

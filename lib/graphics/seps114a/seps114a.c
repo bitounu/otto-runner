@@ -69,9 +69,10 @@ const int STAK_SEPS114A_SPI_BPW = 8;
 const int STAK_SEPS114A_SPI_SPEED = 4000000;
 const int STAK_SEPS114A_SPI_DELAY = 0;
 
+static uint16_t *converted_buffer = 0;
 //#define STAK_SEPS114A_USE_SPIDEV
 
-stak_seps114a_s* stak_seps114a_create() {
+STAK_EXPORT stak_seps114a_s* stak_seps114a_create() {
     stak_seps114a_s* device = calloc(1, sizeof(stak_seps114a_s));
     if(!bcm2835_init()) {
         printf("Failing on bcm2835_init\n");
@@ -184,6 +185,7 @@ stak_seps114a_s* stak_seps114a_create() {
     device->framebuffer = NULL;
     //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     device->framebuffer = calloc(96*96, sizeof(uint16_t));
+    converted_buffer = calloc(96*96, sizeof(uint16_t));
     //printf("Initializing framebuffer at address: 0x%8x\n", (uint32_t) device->framebuffer);
     memset(device->framebuffer, 0x33, 96*96*2);
     return device;
@@ -227,7 +229,7 @@ inline void stak_seps114a_spidev_write(stak_seps114a_s* device, uint8_t* data, i
         }
     }
 }
-int stak_seps114a_destroy(stak_seps114a_s* device) {
+STAK_EXPORT int stak_seps114a_destroy(stak_seps114a_s* device) {
 
     memset(device->framebuffer, 0x00,96*96*2);
     stak_seps114a_update(device);
@@ -249,7 +251,7 @@ inline uint32_t swap_rgb32 (uint32_t rgb)
              ((rgb >> 8) & 0x00ff00ff));
 }
 
-int stak_seps114a_update(stak_seps114a_s* device) {
+STAK_EXPORT int stak_seps114a_update(stak_seps114a_s* device) {
     stak_seps114a_write_command_value(device, SEPS114A_MEMORY_WRITE_READ,0x01);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_X1,0x00);
     stak_seps114a_write_command_value(device, SEPS114A_MEM_X2,0x5F);
@@ -261,8 +263,10 @@ int stak_seps114a_update(stak_seps114a_s* device) {
 
 #if 1
     uint32_t *vmem32 = (uint32_t*)device->framebuffer, *vmem32_end = vmem32 + 4608;
+    uint32_t *omem32 = (uint32_t*)converted_buffer;
     while( vmem32 < vmem32_end) {
-        *vmem32 = swap_rgb32( *vmem32 );
+        *omem32 = swap_rgb32( *vmem32 );
+        omem32++;
         vmem32++;
     }
 #else
@@ -276,7 +280,7 @@ int stak_seps114a_update(stak_seps114a_s* device) {
 #endif
     GPIO_ON(STAK_SEPS114A_PIN_DC);
 
-    stak_seps114a_write_data(device, (uint8_t*)device->framebuffer, 96*96*2);
+    stak_seps114a_write_data(device, (uint8_t*)converted_buffer, 96*96*2);
     return 0;
 }
 int stak_seps114a_write_byte(stak_seps114a_s* device, uint8_t data_value) {

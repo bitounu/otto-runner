@@ -9,7 +9,7 @@
 #define OPENGL_WIDTH 96
 #define OPENGL_HEIGHT 96
 static VC_RECT_T screen_rect;
-stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
+STAK_EXPORT stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h) {
 //#define RENDER_WINDOW_ONSCREEN
 
     stak_canvas_s* canvas = calloc(1, sizeof(stak_canvas_s));
@@ -119,7 +119,7 @@ stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, ui
     return canvas;
 }
 
-int stak_canvas_destroy(stak_canvas_s* canvas) {
+STAK_EXPORT int stak_canvas_destroy(stak_canvas_s* canvas) {
     // clear screen
     glClear( GL_COLOR_BUFFER_BIT );
     eglSwapBuffers(canvas->egl_display, canvas->surface);
@@ -136,12 +136,12 @@ int stak_canvas_destroy(stak_canvas_s* canvas) {
     vc_dispmanx_display_close(canvas->display);
     return 0;
 }
-int stak_canvas_copy(stak_canvas_s* canvas, uint8_t* dst, uint32_t pitch) {
+STAK_EXPORT int stak_canvas_copy(stak_canvas_s* canvas, uint8_t* dst, uint32_t pitch) {
     vc_dispmanx_snapshot(canvas->display, canvas->scaled_resource, DISPMANX_FLIP_HRIZ);
     vc_dispmanx_resource_read_data(canvas->scaled_resource, &canvas->scaled_rect, (uint8_t*) dst, pitch);
     return 0;
 }
-int stak_canvas_swap(stak_canvas_s* canvas) {
+STAK_EXPORT int stak_canvas_swap(stak_canvas_s* canvas) {
     eglSwapBuffers(canvas->egl_display, canvas->surface);
     return 0;
 }

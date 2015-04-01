@@ -4,6 +4,7 @@
 #include <GLES/gl.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <otto/otto.hpp>
 typedef struct {
     DISPMANX_DISPLAY_HANDLE_T display;
     DISPMANX_UPDATE_HANDLE_T update;
@@ -27,9 +28,9 @@ typedef enum {
 	STAK_CANVAS_OFFSCREEN = 0x01,
 	STAK_CANVAS_ONSCREEN = 0x02
 }stak_canvas_flags;
-stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h);
-int stak_canvas_destroy(stak_canvas_s* canvas);
-int stak_canvas_copy(stak_canvas_s* canvas, uint8_t* dst, uint32_t pitch);
-int stak_canvas_swap(stak_canvas_s* canvas);
+STAK_EXPORT stak_canvas_s* stak_canvas_create(stak_canvas_flags flags, uint32_t canvas_w, uint32_t canvas_h);
+STAK_EXPORT int stak_canvas_destroy(stak_canvas_s* canvas);
+STAK_EXPORT int stak_canvas_copy(stak_canvas_s* canvas, uint8_t* dst, uint32_t pitch);
+STAK_EXPORT int stak_canvas_swap(stak_canvas_s* canvas);
 
 #endif
