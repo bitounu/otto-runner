@@ -404,29 +404,23 @@ int stak_application_run(struct stak_application_s* application) {
         }
 
         if( shutter_state != -1 ) {
-            if( shutter_state == 0 ) {
-                active_mode->shutter_button_released();
-            }else if( active_mode->shutter_button_pressed ) {
+            if( ( shutter_state == 0 ) && ( active_mode->shutter_button_pressed ) ){
                 active_mode->shutter_button_pressed();
+            }else if( active_mode->shutter_button_released ) {
+                active_mode->shutter_button_released();
             }
             shutter_state = -1;
         }
 
         if( power_state != -1 ) {
             if( active_mode != &menu_state ) {
-                activate_mode(&menu_state);
+                activate_mode(&menu_state);   
+            }
 
-                if( power_state == 0 ) {
-                    active_mode->power_button_released();
-                }else {
-                    active_mode->power_button_pressed();
-                }
-            }else {
-                if( power_state == 0 ) {
-                    active_mode->power_button_released();
-                }else {
-                    active_mode->power_button_pressed();
-                }
+            if( ( power_state == 0 ) && ( active_mode->power_button_pressed ) ){
+                active_mode->power_button_pressed();
+            }else if ( active_mode->power_button_released ){
+                active_mode->power_button_released();
             }
             power_state = -1;
         }
