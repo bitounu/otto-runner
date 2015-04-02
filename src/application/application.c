@@ -333,6 +333,7 @@ int stak_application_destroy(struct stak_application_s* application) {
 #define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
 
 
+static int signum( int x ) { return x > 0 ? 1 : x < 0 ? -1 : 0; }
 static void encoder_callback( int delta ){ encoder_value += delta; };
 //
 // stak_application_run
@@ -386,6 +387,8 @@ int stak_application_run(struct stak_application_s* application) {
     delta_time = last_second_time = last_frame_time = current_time = stak_core_get_time();
     int frames_this_second = 0;
     int frames_per_second = 0;
+    int rotary_last_direction = -1;
+    int rotary_last_successful_direction = 1;
     int rotary_last_value = 0;
 
     ottoRotarySetCallback( encoder_callback );
@@ -407,9 +410,16 @@ int stak_application_run(struct stak_application_s* application) {
             mode_queued_for_activation = 0;
         }
 
-        if(active_mode->crank_rotated) {
-            if(rotary_last_value != encoder_value) {
-                active_mode->crank_rotated(rotary_last_value - encoder_value);
+        if (active_mode->crank_rotated) {
+            if (rotary_last_value != encoder_value) {
+                int delta = rotary_last_value - encoder_value;
+                int direction = signum(delta);
+                if (direction == rotary_last_direction ||
+                    direction == rotary_last_successful_direction) {
+                    active_mode->crank_rotated(delta);
+                    rotary_last_successful_direction = direction;
+                }
+                rotary_last_direction = direction;
                 rotary_last_value = encoder_value;
             }
         }
