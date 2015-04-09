@@ -3,7 +3,7 @@ project(otto-runner)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 
-set(VC_SDK    "/opt/vc")
+# set(VC_SDK    "/opt/vc")
 set(STAK_SDK  "/opt/stak/sdk")
 set(OTTO_BUILD_ROOT  "${STAK_SDK}/../otto")
 
