@@ -3,10 +3,6 @@ project(otto-runner)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 
-# set(VC_SDK    "/opt/vc")
-set(STAK_SDK  "/opt/stak/sdk")
-set(OTTO_BUILD_ROOT  "${STAK_SDK}/../otto")
-
 include_directories(
   src
   lib
@@ -17,20 +13,14 @@ include_directories(SYSTEM
   "${VC_SDK}/include"
   "${VC_SDK}/include/interface/vcos/pthreads"
   "${VC_SDK}/include/interface/vmcs_host/linux"
-
-  # Stak
-  "${STAK_SDK}/include"
 )
+message("VC_SDK=${VC_SDK}")
 link_directories(
   # VideoCore
-  "${VC_SDK}/lib"
-
-  # Stak
-  "${STAK_SDK}/lib"
+  "${VC_SDK}/lib" 
 
   # Otto SDK Main
   "${CMAKE_CURRENT_SOURCE_DIR}../lib"
-  # "${STAK_SDK}/../otto/libOttoHardware/include"
 )
 
 set(src
@@ -42,13 +32,10 @@ set(src
 )
 
 set(mode_src ${src})
-# add_subdirectory( ../libraries/libOttoHardware ${CMAKE_CURRENT_BINARY_DIR}/libOttoHardware )
 add_executable( otto-runner
   ${src}
 )
-# find_package( libOttoHardware )
-# add_custom_target( OttoHardware)
-# add_dependencies( otto-runner OttoHardware )
+
 target_include_directories (otto-runner PUBLIC src)
 target_link_libraries( otto-runner
   pthread
@@ -57,6 +44,7 @@ target_link_libraries( otto-runner
   c
   m
   bcm_host
+  vchostif
   GLESv2
   EGL
   rt
