@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
 	}
 	else {
         // TODO(ryan): This will probably not work. Make actual default .so's?
-    	application = stak_application_create("./ces.so", "./ces.so");
+    	application = stak_application_create("/stak/sdk/libotto_menu.so", "/stak/sdk/libotto_gif_mode.so");
 	}
     stak_application_run(application);
     stak_application_destroy(application);
