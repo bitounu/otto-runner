@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 void stak_activate_mode();
+void stak_load_mode(char *mode_filename);
 
 const char *stak_assets_path();
 
