@@ -180,7 +180,7 @@ void stak_activate_mode() {
     mode_queued_for_activation = &mode_state;
 }
 
-void stak_load_mode(char *mode_filename) {
+void stak_load_mode(const char *mode_filename) {
     if (mode_state.isInitialized && mode_state.shutdown) {
         mode_state.shutdown();
     }
@@ -210,7 +210,7 @@ void stak_application_terminate_cb(int signum)
 //
 // stak_application_create
 //
-struct stak_application_s* stak_application_create(char* menu_filename) {
+struct stak_application_s* stak_application_create(const char *menu_filename) {
     struct stak_application_s* application = calloc(1, sizeof(struct stak_application_s));
     application->menu_filename = malloc( strlen( menu_filename ) + 1 );
     strcpy( application->menu_filename, menu_filename );

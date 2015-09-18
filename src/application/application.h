@@ -19,7 +19,7 @@ struct stak_application_s{
 #endif
 	pthread_t thread_hal_update;
 };
-struct stak_application_s* stak_application_create(char* menu_filename);
+struct stak_application_s* stak_application_create(const char* menu_filename);
 int stak_application_destroy();
 int stak_application_run();
 int stak_application_terminate();
