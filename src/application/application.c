@@ -168,8 +168,8 @@ uint64_t stak_core_get_time() {
 //
 static void activate_mode(stak_state_s *mode) {
     active_mode = mode;
-    if (!mode->isInitialized && mode->init) {
-        mode->init();
+    if (!mode->isInitialized) {
+        if (mode->init) mode->init();
         mode->isInitialized = 1;
     }
 }
