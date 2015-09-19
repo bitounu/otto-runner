@@ -47,7 +47,7 @@ typedef struct {
 } stak_state_s;
 
 static stak_state_s menu_state;
-static stak_state_s mode_state;
+static stak_state_s *mode_state = NULL;
 static stak_state_s *active_mode = &menu_state;
 
 const int pin_shutter_button = 16;
@@ -177,17 +177,25 @@ static void activate_mode(stak_state_s *mode) {
 static stak_state_s *mode_queued_for_activation = 0;
 
 void stak_activate_mode() {
-    mode_queued_for_activation = &mode_state;
+    if (mode_state) {
+        mode_queued_for_activation = mode_state;
+    }
 }
 
 void stak_load_mode(const char *mode_filename) {
-    if (mode_state.isInitialized && mode_state.shutdown) {
-        mode_state.shutdown();
+    if (mode_state && mode_state->isInitialized && mode_state->shutdown) {
+        mode_state->shutdown();
+        lib_close(mode_state);
+        free(mode_state);
+        mode_state = NULL;
     }
 
-    lib_open(mode_filename, &mode_state);
+    if (!mode_state) {
+        mode_state = calloc(1, sizeof(stak_state_s));
+    }
+    lib_open(mode_filename, mode_state);
 
-    mode_state.isInitialized = 0;
+    mode_state->isInitialized = 0;
 }
 
 //
@@ -241,7 +249,7 @@ struct stak_application_s* stak_application_create(const char *menu_filename) {
 int stak_application_destroy(struct stak_application_s* application) {
     // if shutdown method exists, run it
     if(menu_state.shutdown) menu_state.shutdown();
-    if(mode_state.shutdown) mode_state.shutdown();
+    if(mode_state && mode_state->shutdown) mode_state->shutdown();
 
     /*if(pthread_join(application->thread_hal_update, NULL)) {
         fprintf(stderr, "Error joining thread\n");
@@ -370,11 +378,16 @@ int stak_application_run(struct stak_application_s* application) {
                 activate_mode(&menu_state);
             }
 
-            if( ( power_state == 0 ) && ( active_mode->power_button_pressed ) ){
-                active_mode->power_button_pressed();
-            }else if ( active_mode->power_button_released ){
-                active_mode->power_button_released();
+            if (power_state == 0) {
+                if (active_mode->power_button_pressed) {
+                    active_mode->power_button_pressed();
+                }
+            } else {
+                if (active_mode->power_button_released) {
+                    active_mode->power_button_released();
+                }
             }
+
             power_state = -1;
         }
 
