@@ -11,7 +11,8 @@
 extern "C" {
 #endif
 
-void stak_activate_mode();
+void stak_activate_gif_mode();
+void stak_activate_still_mode();
 
 const char *stak_assets_path();
 
