@@ -47,7 +47,7 @@ typedef struct {
 } stak_state_s;
 
 static stak_state_s menu_state;
-static stak_state_s *mode_state = NULL;
+static stak_state_s mode_state;
 static stak_state_s *active_mode = &menu_state;
 
 const int pin_shutter_button = 16;
@@ -168,8 +168,8 @@ uint64_t stak_core_get_time() {
 //
 static void activate_mode(stak_state_s *mode) {
     active_mode = mode;
-    if (!mode->isInitialized) {
-        if (mode->init) mode->init();
+    if (!mode->isInitialized && mode->init) {
+        mode->init();
         mode->isInitialized = 1;
     }
 }
@@ -177,25 +177,7 @@ static void activate_mode(stak_state_s *mode) {
 static stak_state_s *mode_queued_for_activation = 0;
 
 void stak_activate_mode() {
-    if (mode_state) {
-        mode_queued_for_activation = mode_state;
-    }
-}
-
-void stak_load_mode(const char *mode_filename) {
-    if (mode_state && mode_state->isInitialized && mode_state->shutdown) {
-        mode_state->shutdown();
-        lib_close(mode_state);
-        free(mode_state);
-        mode_state = NULL;
-    }
-
-    if (!mode_state) {
-        mode_state = calloc(1, sizeof(stak_state_s));
-    }
-    lib_open(mode_filename, mode_state);
-
-    mode_state->isInitialized = 0;
+    mode_queued_for_activation = &mode_state;
 }
 
 //
@@ -218,10 +200,13 @@ void stak_application_terminate_cb(int signum)
 //
 // stak_application_create
 //
-struct stak_application_s* stak_application_create(const char *menu_filename) {
+struct stak_application_s* stak_application_create(char* menu_filename, char* mode_filename) {
+
     struct stak_application_s* application = calloc(1, sizeof(struct stak_application_s));
     application->menu_filename = malloc( strlen( menu_filename ) + 1 );
     strcpy( application->menu_filename, menu_filename );
+    application->mode_filename = malloc( strlen( mode_filename ) + 1 );
+    strcpy( application->mode_filename, mode_filename );
 
 #if STAK_ENABLE_SEPS114A
     application->display = stak_seps114a_create();
@@ -235,8 +220,10 @@ struct stak_application_s* stak_application_create(const char *menu_filename) {
 #endif
 
     lib_open(application->menu_filename, &menu_state);
+    lib_open(application->mode_filename, &mode_state);
 
     menu_state.isInitialized = 0;
+    mode_state.isInitialized = 0;
 
     activate_mode(&menu_state);
 
@@ -249,7 +236,7 @@ struct stak_application_s* stak_application_create(const char *menu_filename) {
 int stak_application_destroy(struct stak_application_s* application) {
     // if shutdown method exists, run it
     if(menu_state.shutdown) menu_state.shutdown();
-    if(mode_state && mode_state->shutdown) mode_state->shutdown();
+    if(mode_state.shutdown) mode_state.shutdown();
 
     /*if(pthread_join(application->thread_hal_update, NULL)) {
         fprintf(stderr, "Error joining thread\n");
@@ -375,19 +362,14 @@ int stak_application_run(struct stak_application_s* application) {
 
         if( power_state != -1 ) {
             if( active_mode != &menu_state ) {
-                activate_mode(&menu_state);
+                activate_mode(&menu_state);   
             }
 
-            if (power_state == 0) {
-                if (active_mode->power_button_pressed) {
-                    active_mode->power_button_pressed();
-                }
-            } else {
-                if (active_mode->power_button_released) {
-                    active_mode->power_button_released();
-                }
+            if( ( power_state == 0 ) && ( active_mode->power_button_pressed ) ){
+                active_mode->power_button_pressed();
+            }else if ( active_mode->power_button_released ){
+                active_mode->power_button_released();
             }
-
             power_state = -1;
         }
 
