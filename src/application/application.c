@@ -32,6 +32,8 @@ static void *lib_handle;
 
 typedef struct {
     int ( *init )                       ( void );                   // int init                     ( void );
+    int ( *activate )                   ( void );                   // int activate                 ( void );
+    int ( *deactivate )                 ( void );                   // int deactivate               ( void );
     int ( *update )                     ( float delta );            // int update                   ( float delta );
     int ( *draw )                       ( void );                   // int draw                     ( void );
     int ( *shutdown )                   ( void );                   // int shutdown                 ( void );
@@ -101,6 +103,12 @@ int lib_open(const char* plugin_name, stak_state_s* app_state) {
     app_state->update = dlsym(lib_handle, "update");
     if ((error = dlerror()) != NULL) app_state->update = 0;
 
+    app_state->activate = dlsym(lib_handle, "activate");
+    if ((error = dlerror()) != NULL) app_state->activate = 0;
+
+    app_state->deactivate = dlsym(lib_handle, "deactivate");
+    if ((error = dlerror()) != NULL) app_state->deactivate = 0;
+
     // int (*draw)           ( void );
     app_state->draw = dlsym(lib_handle, "draw");
     if ((error = dlerror()) != NULL) app_state->draw = 0;
@@ -167,11 +175,16 @@ uint64_t stak_core_get_time() {
 // activate_mode
 //
 static void activate_mode(stak_state_s *mode) {
+    if (active_mode && active_mode->deactivate) active_mode->deactivate();
+
     active_mode = mode;
+
     if (!mode->isInitialized && mode->init) {
         mode->init();
         mode->isInitialized = 1;
     }
+
+    if (mode->activate) mode->activate();
 }
 
 static stak_state_s *mode_queued_for_activation = 0;
@@ -246,6 +259,8 @@ struct stak_application_s *stak_application_create(char *menu_filename, char *gi
 // stak_application_destroy
 //
 int stak_application_destroy(struct stak_application_s* application) {
+    if (active_mode && active_mode->deactivate) active_mode->deactivate();
+
     // if shutdown method exists, run it
     if (menu_state.shutdown) menu_state.shutdown();
     if (gif_mode_state.shutdown) gif_mode_state.shutdown();
