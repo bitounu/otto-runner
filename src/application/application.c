@@ -87,9 +87,9 @@ int lib_open(const char* plugin_name, stak_state_s* app_state) {
     {
         char *slash_pos = strrchr(plugin_name, '/');
         size_t prefix_size = slash_pos ? (size_t)(slash_pos + 1 - plugin_name) : 0;
-        app_state->assets_path = malloc(prefix_size + strlen("assets/"));
+        app_state->assets_path = malloc(prefix_size + strlen("assets/") + 1);
         strncpy(app_state->assets_path, plugin_name, prefix_size);
-        strcat(app_state->assets_path, "assets/");
+        strcpy(app_state->assets_path + prefix_size, "assets/");
     }
 
     // int (*init)           ( void );
